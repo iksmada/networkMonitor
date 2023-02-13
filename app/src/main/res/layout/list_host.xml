@@ -55,12 +55,25 @@
             
     </LinearLayout>
 
-    <ImageView
+    <Button
+        android:id="@+id/track"
+        android:text="@string/btn_track"
         android:src="@drawable/arrow_right"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
-        android:paddingRight="10dip"
-        android:paddingLeft="5dip" />
+        android:paddingEnd="10dip"
+        android:paddingStart="5dip" />
+
+    <Button
+        android:id="@+id/delete"
+        android:visibility="gone"
+        android:text="@string/btn_remove"
+        android:src="@drawable/arrow_right"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:paddingEnd="10dip"
+        android:paddingStart="5dip" />
     
 </LinearLayout>

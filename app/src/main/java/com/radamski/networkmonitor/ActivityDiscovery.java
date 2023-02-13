@@ -5,12 +5,11 @@
 
 package com.radamski.networkmonitor;
 
-import android.app.Activity;
+import static com.radamski.networkmonitor.AbstractDiscovery.TRACKED_DEVICES;
+
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -23,13 +22,13 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-
-import java.util.ArrayList;
-import java.util.List;
-
 import com.radamski.networkmonitor.Network.HostBean;
 import com.radamski.networkmonitor.Network.NetInfo;
 import com.radamski.networkmonitor.Utils.Prefs;
+import com.radamski.networkmonitor.Utils.TinyDB;
+
+import java.util.ArrayList;
+import java.util.List;
 
 final public class ActivityDiscovery extends ActivityNet {
 
@@ -46,10 +45,16 @@ final public class ActivityDiscovery extends ActivityNet {
     private long network_ip = 0;
     private long network_start = 0;
     private long network_end = 0;
-    private List<HostBean> hosts = null;
-    private HostsAdapter adapter;
+    private List<HostBean> hosts = new ArrayList<>();;
+    private HostsAdapter discoverAdapter;
+    private HostsAdapter trackedAdapter;
     private Button btn_discover;
     private AbstractDiscovery mDiscoveryTask = null;
+
+    private TinyDB<HostBean> tinydb;
+    private List<HostBean> trackedHosts = new ArrayList<>();
+    private ListView discoverList;
+    private ListView trackedList;
 
     // private SlidingDrawer mDrawer;
 
@@ -60,21 +65,28 @@ final public class ActivityDiscovery extends ActivityNet {
         requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
         setContentView(R.layout.discovery);
         mInflater = LayoutInflater.from(ctxt);
+        tinydb = new TinyDB(ctxt);
 
         // Discover
         btn_discover = (Button) findViewById(R.id.btn_discover);
-        btn_discover.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                startDiscovering();
-            }
-        });
+        btn_discover.setOnClickListener(v -> startDiscovering());
 
-        // Hosts list
-        adapter = new HostsAdapter(ctxt);
-        ListView list = (ListView) findViewById(R.id.output);
-        list.setAdapter(adapter);
-        list.setItemsCanFocus(false);
-        list.setEmptyView(findViewById(R.id.list_empty));
+        // Discover Hosts list
+        discoverAdapter = new HostsAdapter(ctxt, hosts);
+        discoverList = (ListView) findViewById(R.id.output);
+        discoverList.setAdapter(discoverAdapter);
+        discoverList.setItemsCanFocus(false);
+        // Tracked Hosts list
+        trackedHosts = tinydb.getListObject(TRACKED_DEVICES, HostBean.class);
+        trackedAdapter = new HostsAdapter(ctxt, false, trackedHosts);
+        trackedList = (ListView) findViewById(R.id.tracked);
+        trackedList.setAdapter(trackedAdapter);
+        trackedList.setItemsCanFocus(true);
+        trackedList.setEmptyView(findViewById(R.id.tracked_list_empty));
+        LayoutInflater inflater = getLayoutInflater();
+        TextView header = new TextView(ctxt);
+        header.setText(R.string.tracked_title);
+        trackedList.addHeaderView(header);
     }
 
     @Override
@@ -152,25 +164,9 @@ final public class ActivityDiscovery extends ActivityNet {
             mDiscoveryTask.cancel(true);
             mDiscoveryTask = null;
         }
-    }
-
-    // Listen for Activity results
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        switch (requestCode) {
-            case SCAN_PORT_RESULT:
-                if (resultCode == RESULT_OK) {
-                    // Get scanned ports
-                    if (data != null && data.hasExtra(HostBean.EXTRA)) {
-                        HostBean host = data.getParcelableExtra(HostBean.EXTRA);
-                        if (host != null) {
-                            hosts.set(host.position, host);
-                        }
-                    }
-                }
-            default:
-                break;
-        }
+        trackedAdapter.notifyDataSetChanged();
+        discoverList.setVisibility(View.GONE);
+        trackedList.setVisibility(View.VISIBLE);
     }
 
     static class ViewHolder {
@@ -178,12 +174,21 @@ final public class ActivityDiscovery extends ActivityNet {
         TextView mac;
         TextView vendor;
         ImageView logo;
+        Button track;
+        Button delete;
     }
 
     // Custom ArrayAdapter
-    private class HostsAdapter extends ArrayAdapter<Void> {
-        public HostsAdapter(Context ctxt) {
-            super(ctxt, R.layout.list_host, R.id.list);
+    private class HostsAdapter extends ArrayAdapter<HostBean> {
+        private final boolean showTrack;
+
+        public HostsAdapter(Context ctxt, boolean showTrack, List<HostBean> elements) {
+            super(ctxt, R.layout.list_host, elements);
+            this.showTrack = showTrack;
+        }
+
+        public HostsAdapter(Context ctxt, List<HostBean> elements) {
+            this(ctxt, true, elements);
         }
 
         @Override
@@ -196,11 +201,13 @@ final public class ActivityDiscovery extends ActivityNet {
                 holder.mac = (TextView) convertView.findViewById(R.id.mac);
                 holder.vendor = (TextView) convertView.findViewById(R.id.vendor);
                 holder.logo = (ImageView) convertView.findViewById(R.id.logo);
+                holder.track = (Button) convertView.findViewById(R.id.track);
+                holder.delete = (Button) convertView.findViewById(R.id.delete);
                 convertView.setTag(holder);
             } else {
                 holder = (ViewHolder) convertView.getTag();
             }
-            final HostBean host = hosts.get(position);
+            final HostBean host = getItem(position);
             if (host.deviceType == HostBean.TYPE_GATEWAY) {
                 holder.logo.setImageResource(R.drawable.router);
             } else if (host.isAlive == 1 || !host.hardwareAddress.equals(NetInfo.NOMAC)) {
@@ -209,7 +216,7 @@ final public class ActivityDiscovery extends ActivityNet {
                 holder.logo.setImageResource(R.drawable.computer_down);
             }
             if (host.hostname != null && !host.hostname.equals(host.ipAddress)) {
-                holder.host.setText(host.hostname + " (" + host.ipAddress + ")");
+                holder.host.setText(String.format("%s (%s)", host.hostname, host.ipAddress));
             } else {
                 holder.host.setText(host.ipAddress);
             }
@@ -226,6 +233,30 @@ final public class ActivityDiscovery extends ActivityNet {
                 holder.mac.setVisibility(View.GONE);
                 holder.vendor.setVisibility(View.GONE);
             }
+            if (showTrack) {
+                holder.delete.setVisibility(View.GONE);
+                holder.track.setVisibility(View.VISIBLE);
+                holder.track.setOnClickListener(view -> {
+                    trackedHosts.add(host);
+
+                    // Add to DB (SharedPrefs json string)
+                    tinydb.putListObject(TRACKED_DEVICES, trackedHosts);
+                    Toast.makeText(getApplicationContext(), String.format("Tracking %s", host.hostname), Toast.LENGTH_SHORT).show();
+                });
+            }
+            else
+            {
+                holder.track.setVisibility(View.GONE);
+                holder.delete.setVisibility(View.VISIBLE);
+                holder.delete.setOnClickListener(view -> {
+                    trackedHosts.remove(host);
+
+                    // Add to DB (SharedPrefs json string)
+                    tinydb.putListObject(TRACKED_DEVICES, trackedHosts);
+                    trackedAdapter.notifyDataSetChanged();
+                    Toast.makeText(getApplicationContext(), String.format("Removed %s", host.hostname), Toast.LENGTH_SHORT).show();
+                });
+            }
             return convertView;
         }
     }
@@ -239,11 +270,9 @@ final public class ActivityDiscovery extends ActivityNet {
         mDiscoveryTask.execute();
         btn_discover.setText(R.string.btn_discover_cancel);
         setButton(btn_discover, R.drawable.cancel, false);
-        btn_discover.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                cancelTasks();
-            }
-        });
+        btn_discover.setOnClickListener(v -> cancelTasks());
+        trackedList.setVisibility(View.GONE);
+        discoverList.setVisibility(View.VISIBLE);
         makeToast(R.string.discover_start);
         setProgressBarVisibility(true);
         setProgressBarIndeterminateVisibility(true);
@@ -254,11 +283,7 @@ final public class ActivityDiscovery extends ActivityNet {
         Log.e(TAG, "stopDiscovering()");
         mDiscoveryTask = null;
         setButtonOn(btn_discover, R.drawable.discover);
-        btn_discover.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                startDiscovering();
-            }
-        });
+        btn_discover.setOnClickListener(v -> startDiscovering());
         setProgressBarVisibility(false);
         setProgressBarIndeterminateVisibility(false);
         btn_discover.setText(R.string.btn_discover);
@@ -266,14 +291,13 @@ final public class ActivityDiscovery extends ActivityNet {
 
     private void initList() {
         // setSelectedHosts(false);
-        adapter.clear();
-        hosts = new ArrayList<HostBean>();
+        discoverAdapter.clear();
     }
 
     public void addHost(HostBean host) {
         host.position = hosts.size();
         hosts.add(host);
-        adapter.add(null);
+        discoverAdapter.notifyDataSetChanged();
     }
 
     public void makeToast(int msg) {

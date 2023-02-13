@@ -1,13 +1,10 @@
 package com.radamski.networkmonitor;
 
-import android.content.Context;
 import android.os.AsyncTask;
-import android.os.Vibrator;
-
-import java.lang.ref.WeakReference;
 
 import com.radamski.networkmonitor.Network.HostBean;
-import com.radamski.networkmonitor.Utils.Prefs;
+
+import java.lang.ref.WeakReference;
 
 public abstract class AbstractDiscovery extends AsyncTask<Void, HostBean, Void> {
 
@@ -20,6 +17,8 @@ public abstract class AbstractDiscovery extends AsyncTask<Void, HostBean, Void> 
     protected long start = 0;
     protected long end = 0;
     protected long size = 0;
+
+    public static final String TRACKED_DEVICES = "trackedDevices";
 
     public AbstractDiscovery(ActivityDiscovery discover) {
         mDiscover = new WeakReference<ActivityDiscovery>(discover);

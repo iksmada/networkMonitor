@@ -1,15 +1,16 @@
 plugins {
     id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
 }
 
 android {
     namespace 'com.radamski.networkmonitor'
-    compileSdk 27
+    compileSdk 33
 
     defaultConfig {
         applicationId "com.radamski.networkmonitor"
         minSdk 26
-        targetSdk 27
+        targetSdk 33
         versionCode 1
         versionName "1.0"
 
@@ -33,5 +34,8 @@ android {
 
 dependencies {
 
+    implementation 'com.joaomgcd:taskerpluginlibrary:0.4.7'
+    implementation 'androidx.core:core-ktx:+'
     testImplementation 'junit:junit:4.13.2'
+    implementation 'com.google.code.gson:gson:2.8.9'
 }

@@ -19,6 +19,7 @@
     <string name="btn_info">Info</string>
     <string name="btn_ports">Ports</string>
     <string name="btn_remove">Remove</string>
+    <string name="btn_track">Track</string>
 
     <string name="task_db">Downloading and installing %s database ...</string>
     <string name="task_services">Creating Services database ...\nThis may take a while ...</string>
@@ -91,6 +92,12 @@
     <string name="help_portscan_content">Port scan is event driven, using Java\'s Selector and SocketChannel.\nThere is a fake timeout by registrering the time in ms at socket\'s creation and checking regularly this value.\nThe port scan method, as discovery, uses full tcp connection check. (will be more granular in the future with root features.)\n\nA maximum of 127 Sockets are opened at a time, so this is not always accurate, but quite fast. Again, a new feature is coming that will adapt times between requests according to host response time (kind of software network congestion control)\n\nA port is considered open when tcp connect() is fully successful, closed when no service is listening on the other end, or filtered when the timeout is reached.</string>
     <string name="help_links_title">Links</string>
     <string name="help_links_content">- TCP connect scan: http://nmap.org/book/man-port-scanning-techniques.html#id421401\n\n- Host discovery: http://nmap.org/book/man-host-discovery.html</string>
+
+
+    <string name="tracked_empty">Tracked devices will appear here</string>
+    <string name="tracked_title">Tracked Devices</string>
+
+
 
     <string name="preferences_help">Help</string>
     <string name="preferences_export">Export</string>
