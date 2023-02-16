@@ -65,7 +65,7 @@ final public class ActivityDiscovery extends ActivityNet {
         requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
         setContentView(R.layout.discovery);
         mInflater = LayoutInflater.from(ctxt);
-        tinydb = new TinyDB(ctxt);
+        tinydb = new TinyDB<>(ctxt);
 
         // Discover
         btn_discover = (Button) findViewById(R.id.btn_discover);
@@ -83,7 +83,6 @@ final public class ActivityDiscovery extends ActivityNet {
         trackedList.setAdapter(trackedAdapter);
         trackedList.setItemsCanFocus(true);
         trackedList.setEmptyView(findViewById(R.id.tracked_list_empty));
-        LayoutInflater inflater = getLayoutInflater();
         TextView header = new TextView(ctxt);
         header.setText(R.string.tracked_title);
         trackedList.addHeaderView(header);

@@ -32,7 +32,7 @@
             android:name=".ActivityDeviceState"
             android:exported="true"
             android:icon="@android:drawable/stat_sys_phone_call"
-            android:label="Device State Condition">
+            android:label="Devices Connected">
             <intent-filter>
                 <action android:name="com.twofortyfouram.locale.intent.action.EDIT_CONDITION" />
             </intent-filter>
