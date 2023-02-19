@@ -5,7 +5,18 @@
 
 package com.radamski.networkmonitor;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.util.Log;
+
+import com.radamski.networkmonitor.Network.HardwareAddress;
+import com.radamski.networkmonitor.Network.HostBean;
+import com.radamski.networkmonitor.Network.NetInfo;
+import com.radamski.networkmonitor.Network.RateControl;
+import com.radamski.networkmonitor.Utils.Prefs;
+import com.radamski.networkmonitor.Utils.Save;
+import com.radamski.networkmonitor.Utils.TaskInterface;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -16,29 +27,26 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import com.radamski.networkmonitor.Network.HardwareAddress;
-import com.radamski.networkmonitor.Network.HostBean;
-import com.radamski.networkmonitor.Network.NetInfo;
-import com.radamski.networkmonitor.Network.RateControl;
-import com.radamski.networkmonitor.Utils.Prefs;
-import com.radamski.networkmonitor.Utils.Save;
+public class DefaultDiscoveryTask extends AbstractDiscoveryTask {
 
-public class DefaultDiscovery extends AbstractDiscovery {
-
-    private final String TAG = "DefaultDiscovery";
+    private final String TAG = "DefaultDiscoveryTask";
     private final static int[] DPORTS = { 139, 445, 22, 80 };
     private final static int TIMEOUT_SCAN = 3600; // seconds
     private final static int TIMEOUT_SHUTDOWN = 10; // seconds
     private final static int THREADS = 10; //FIXME: Test, plz set in options again ?
     private final int mRateMult = 5; // Number of alive hosts between Rate
+    private final SharedPreferences prefs;
+    private final NetInfo net;
     private int pt_move = 2; // 1=backward 2=forward
     private ExecutorService mPool;
     private boolean doRateControl;
     private RateControl mRateControl;
     private Save mSave;
 
-    public DefaultDiscovery(ActivityDiscovery discover) {
-        super(discover);
+    public DefaultDiscoveryTask(TaskInterface comm, Context ctxt) {
+        super(comm);
+        prefs = PreferenceManager.getDefaultSharedPreferences(ctxt);
+        net = new NetInfo(ctxt);
         mRateControl = new RateControl();
         mSave = new Save();
     }
@@ -46,75 +54,65 @@ public class DefaultDiscovery extends AbstractDiscovery {
     @Override
     protected void onPreExecute() {
         super.onPreExecute();
-        if (mDiscover != null) {
-            final ActivityDiscovery discover = mDiscover.get();
-            if (discover != null) {
-                doRateControl = discover.prefs.getBoolean(Prefs.KEY_RATECTRL_ENABLE,
-                        Prefs.DEFAULT_RATECTRL_ENABLE);
-            }
-        }
+        doRateControl = prefs.getBoolean(Prefs.KEY_RATECTRL_ENABLE,
+                Prefs.DEFAULT_RATECTRL_ENABLE);
     }
 
     @Override
     protected Void doInBackground(Void... params) {
-        if (mDiscover != null) {
-            final ActivityDiscovery discover = mDiscover.get();
-            if (discover != null) {
-                Log.v(TAG, "start=" + NetInfo.getIpFromLongUnsigned(start) + " (" + start
-                        + "), end=" + NetInfo.getIpFromLongUnsigned(end) + " (" + end
-                        + "), length=" + size);
-                mPool = Executors.newFixedThreadPool(THREADS);
-                if (ip <= end && ip >= start) {
-                    Log.i(TAG, "Back and forth scanning");
-                    // gateway
-                    launch(start);
+        Log.v(TAG, "start=" + NetInfo.getIpFromLongUnsigned(start) + " (" + start
+                + "), end=" + NetInfo.getIpFromLongUnsigned(end) + " (" + end
+                + "), length=" + size);
+        mPool = Executors.newFixedThreadPool(THREADS);
+        if (ip <= end && ip >= start) {
+            Log.i(TAG, "Back and forth scanning");
+            // gateway
+            launch(start);
 
-                    // hosts
-                    long pt_backward = ip;
-                    long pt_forward = ip + 1;
-                    long size_hosts = size - 1;
+            // hosts
+            long pt_backward = ip;
+            long pt_forward = ip + 1;
+            long size_hosts = size - 1;
 
-                    for (int i = 0; i < size_hosts; i++) {
-                        // Set pointer if of limits
-                        if (pt_backward <= start) {
-                            pt_move = 2;
-                        } else if (pt_forward > end) {
-                            pt_move = 1;
-                        }
-                        // Move back and forth
-                        if (pt_move == 1) {
-                            launch(pt_backward);
-                            pt_backward--;
-                            pt_move = 2;
-                        } else if (pt_move == 2) {
-                            launch(pt_forward);
-                            pt_forward++;
-                            pt_move = 1;
-                        }
-                    }
-                } else {
-                    Log.i(TAG, "Sequencial scanning");
-                    for (long i = start; i <= end; i++) {
-                        launch(i);
-                    }
+            for (int i = 0; i < size_hosts; i++) {
+                // Set pointer if of limits
+                if (pt_backward <= start) {
+                    pt_move = 2;
+                } else if (pt_forward > end) {
+                    pt_move = 1;
                 }
-                mPool.shutdown();
-                try {
-                    if(!mPool.awaitTermination(TIMEOUT_SCAN, TimeUnit.SECONDS)){
-                        mPool.shutdownNow();
-                        Log.e(TAG, "Shutting down pool");
-                        if(!mPool.awaitTermination(TIMEOUT_SHUTDOWN, TimeUnit.SECONDS)){
-                            Log.e(TAG, "Pool did not terminate");
-                        }
-                    }
-                } catch (InterruptedException e){
-                    Log.e(TAG, e.getMessage());
-                    mPool.shutdownNow();
-                    Thread.currentThread().interrupt();
-                } finally {
-                    mSave.closeDb();
+                // Move back and forth
+                if (pt_move == 1) {
+                    launch(pt_backward);
+                    pt_backward--;
+                    pt_move = 2;
+                } else if (pt_move == 2) {
+                    launch(pt_forward);
+                    pt_forward++;
+                    pt_move = 1;
                 }
             }
+        } else {
+            Log.i(TAG, "Sequencial scanning");
+            for (long i = start; i <= end; i++) {
+                launch(i);
+            }
+        }
+        mPool.shutdown();
+        try {
+            if(!mPool.awaitTermination(TIMEOUT_SCAN, TimeUnit.SECONDS)){
+                mPool.shutdownNow();
+                Log.e(TAG, "Shutting down pool");
+                if(!mPool.awaitTermination(TIMEOUT_SHUTDOWN, TimeUnit.SECONDS)){
+                    Log.e(TAG, "Pool did not terminate");
+                }
+            }
+        } catch (InterruptedException e){
+            Log.e(TAG, e.getMessage());
+            mPool.shutdownNow();
+            Thread.currentThread().interrupt();
+        } finally {
+            mSave.closeDb();
         }
         return null;
     }
@@ -140,15 +138,8 @@ public class DefaultDiscovery extends AbstractDiscovery {
         if (doRateControl) {
             return mRateControl.rate;
         }
-
-        if (mDiscover != null) {
-            final ActivityDiscovery discover = mDiscover.get();
-            if (discover != null) {
-                return Integer.parseInt(discover.prefs.getString(Prefs.KEY_TIMEOUT_DISCOVER,
-                        Prefs.DEFAULT_TIMEOUT_DISCOVER));
-            }
-        }
-        return 1;
+        return Integer.parseInt(prefs.getString(Prefs.KEY_TIMEOUT_DISCOVER,
+                Prefs.DEFAULT_TIMEOUT_DISCOVER));
     }
 
     private class CheckRunnable implements Runnable {
@@ -247,39 +238,34 @@ public class DefaultDiscovery extends AbstractDiscovery {
             return; 
         }
 
-        if (mDiscover != null) {
-            final ActivityDiscovery discover = mDiscover.get();
-            if (discover != null) {
-                // Mac Addr not already detected
-                if(NetInfo.NOMAC.equals(host.hardwareAddress)){
-                    host.hardwareAddress = HardwareAddress.getHardwareAddress(host.ipAddress);
-                }
+        // Mac Addr not already detected
+        if(NetInfo.NOMAC.equals(host.hardwareAddress)){
+            host.hardwareAddress = HardwareAddress.getHardwareAddress(host.ipAddress);
+        }
 
-                // Is gateway ?
-                if (discover.net.gatewayIp.equals(host.ipAddress)) {
-                    host.deviceType = HostBean.TYPE_GATEWAY;
-                }
+        // Is gateway ?
+        if (net.gatewayIp.equals(host.ipAddress)) {
+            host.deviceType = HostBean.TYPE_GATEWAY;
+        }
 
-                // FQDN
-                // Static
-                if ((host.hostname = mSave.getCustomName(host)) == null) {
-                    // DNS
-                    if (discover.prefs.getBoolean(Prefs.KEY_RESOLVE_NAME,
-                            Prefs.DEFAULT_RESOLVE_NAME) == true) {
-                        try {
-                            host.hostname = (InetAddress.getByName(host.ipAddress)).getCanonicalHostName();
-                        } catch (UnknownHostException e) {
-                            Log.e(TAG, e.getMessage());
-                        }
-                    }
-                    // TODO: NETBIOS
-                    //try {
-                    //    host.hostname = NbtAddress.getByName(addr).getHostName();
-                    //} catch (UnknownHostException e) {
-                    //    Log.i(TAG, e.getMessage());
-                    //}
+        // FQDN
+        // Static
+        if ((host.hostname = mSave.getCustomName(host)) == null) {
+            // DNS
+            if (prefs.getBoolean(Prefs.KEY_RESOLVE_NAME,
+                    Prefs.DEFAULT_RESOLVE_NAME) == true) {
+                try {
+                    host.hostname = (InetAddress.getByName(host.ipAddress)).getCanonicalHostName();
+                } catch (UnknownHostException e) {
+                    Log.e(TAG, e.getMessage());
                 }
             }
+            // TODO: NETBIOS
+            //try {
+            //    host.hostname = NbtAddress.getByName(addr).getHostName();
+            //} catch (UnknownHostException e) {
+            //    Log.i(TAG, e.getMessage());
+            //}
         }
 
         publishProgress(host);

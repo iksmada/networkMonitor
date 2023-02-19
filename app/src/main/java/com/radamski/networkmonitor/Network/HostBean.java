@@ -90,4 +90,21 @@ public class HostBean implements Parcelable {
             return new HostBean[size];
         }
     };
+
+    @Override
+    public boolean equals(Object other)
+    {
+        if(other instanceof HostBean)
+        {
+            HostBean otherHost = (HostBean) other;
+            if(this.hardwareAddress.equals(otherHost.hardwareAddress)) {
+                if (this.hostname != null && !this.hostname.equals(this.ipAddress)) {
+                    return this.hostname.equals(otherHost.hostname);
+                }
+                // if the host name is not avaible we can only compare the mac address
+                return true;
+            }
+        }
+        return false;
+    }
 }

@@ -11,6 +11,7 @@
     <string name="btn_ok">Ok</string>
     <string name="btn_discover">Discover</string>
     <string name="btn_discover_cancel">Cancel</string>
+    <string name="btn_discover_return">Return</string>
     <string name="btn_export">Export</string>
     <string name="btn_close">Close</string>
     <string name="btn_scan">Scan</string>

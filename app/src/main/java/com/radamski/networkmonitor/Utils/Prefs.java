@@ -27,16 +27,16 @@ import android.util.Log;
 import android.view.Window;
 import android.widget.Toast;
 
+import com.radamski.networkmonitor.ActivityDiscovery;
+import com.radamski.networkmonitor.Network.NetInfo;
+import com.radamski.networkmonitor.R;
+
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import com.radamski.networkmonitor.ActivityDiscovery;
-import com.radamski.networkmonitor.Network.NetInfo;
-import com.radamski.networkmonitor.R;
 
 
 public class Prefs extends PreferenceActivity implements OnSharedPreferenceChangeListener {
@@ -83,10 +83,10 @@ public class Prefs extends PreferenceActivity implements OnSharedPreferenceChang
     public final static String DEFAULT_TIMEOUT_PORTSCAN = "500";
 
     public static final String KEY_RATECTRL_ENABLE = "ratecontrol_enable";
-    public static final boolean DEFAULT_RATECTRL_ENABLE = true;
+    public static final boolean DEFAULT_RATECTRL_ENABLE = false;
 
     public final static String KEY_TIMEOUT_DISCOVER = "timeout_discover";
-    public final static String DEFAULT_TIMEOUT_DISCOVER = "500";
+    public final static String DEFAULT_TIMEOUT_DISCOVER = "1000";
 
     public static final String KEY_BANNER = "banner";
     public static final boolean DEFAULT_BANNER = true;

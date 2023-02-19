@@ -2,7 +2,6 @@ package com.radamski.networkmonitor
 
 import android.content.Context
 import android.os.Bundle
-import android.view.View.OnCreateContextMenuListener
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import com.joaomgcd.taskerpluginlibrary.condition.TaskerPluginRunnerConditionNoOutput

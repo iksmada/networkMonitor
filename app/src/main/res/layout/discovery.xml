@@ -64,19 +64,22 @@
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:textSize="10dip"
-            android:typeface="monospace" />
+            android:typeface="monospace"
+            android:textColor="@color/grey"/>
         <TextView
             android:id="@+id/info_in"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:textSize="10dip"
             android:typeface="monospace"
-            android:text="@string/wifi_unknown" />
+            android:text="@string/wifi_unknown"
+            android:textColor="@color/grey" />
         <TextView
             android:id="@+id/info_mo"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:textSize="10dip"
-            android:typeface="monospace" />
+            android:typeface="monospace"
+            android:textColor="@color/grey" />
     </LinearLayout>
 </LinearLayout>
