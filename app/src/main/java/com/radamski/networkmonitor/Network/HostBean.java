@@ -9,11 +9,14 @@ package com.radamski.networkmonitor.Network;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import com.joaomgcd.taskerpluginlibrary.input.TaskerInputField;
+import com.joaomgcd.taskerpluginlibrary.input.TaskerInputObject;
 import com.radamski.networkmonitor.ActivityDiscovery;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 
+@TaskerInputObject(key = "host")
 public class HostBean implements Parcelable {
 
     public static final String EXTRA = ActivityDiscovery.PKG + ".extra";
@@ -24,8 +27,11 @@ public class HostBean implements Parcelable {
     public int isAlive = 1;
     public int position = 0;
     public int responseTime = 0; // ms
+    @TaskerInputField(key = "ipAddress")
     public String ipAddress = null;
+    @TaskerInputField(key = "hostname")
     public String hostname = null;
+    @TaskerInputField(key = "hardwareAddress")
     public String hardwareAddress = NetInfo.NOMAC;
     public String nicVendor = "Unknown";
     public String os = "Unknown";

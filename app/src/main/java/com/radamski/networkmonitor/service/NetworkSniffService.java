@@ -20,7 +20,9 @@ import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
+import com.radamski.networkmonitor.ActivityDeviceState;
 import com.radamski.networkmonitor.ActivityDiscovery;
+import com.radamski.networkmonitor.BasicStateRunner;
 import com.radamski.networkmonitor.DefaultDiscoveryTask;
 import com.radamski.networkmonitor.Network.HostBean;
 import com.radamski.networkmonitor.Network.NetInfo;
@@ -29,6 +31,7 @@ import com.radamski.networkmonitor.Utils.TaskInterface;
 import com.radamski.networkmonitor.Utils.TinyDB;
 import com.radamski.networkmonitor.receiver.NetwortkStatusReceiver;
 import com.radamski.networkmonitor.receiver.RestartReceiver;
+import com.radamski.networkmonitor.state.DeviceUpdate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,10 +60,12 @@ public class NetworkSniffService extends Service implements TaskInterface {
         Log.d(TAG, "onCreate called");
         createNotificationChannel();
         isServiceRunning = true;
+        tinydb = new TinyDB<>(this);
     }
 
     @Override
     public IBinder onBind(Intent intent) {
+        // TODO bind to the activity in order to avoid stopping the service
         return null;
     }
 
@@ -79,13 +84,11 @@ public class NetworkSniffService extends Service implements TaskInterface {
         network_start = NetInfo.getUnsignedLongFromIp(prefs.getString(KEY_IP_START, DEFAULT_IP_START));
         network_end = NetInfo.getUnsignedLongFromIp(prefs.getString(KEY_IP_END, DEFAULT_IP_END));
 
-        tinydb = new TinyDB<>(this);
-
         // TODO add a receiver if this change
         trackedHosts = tinydb.getListObject(TRACKED_DEVICES, HostBean.class);
 
         if(trackedHosts.isEmpty()) {
-            stopForeground(true);
+            stopSelf();
             return START_NOT_STICKY;
         }
         trackedHosts = tinydb.getListObject(TRACKED_DEVICES, HostBean.class);
@@ -115,6 +118,7 @@ public class NetworkSniffService extends Service implements TaskInterface {
         mDiscoveryTask = new DefaultDiscoveryTask(this, this);
         mDiscoveryTask.setNetwork(network_ip, network_start, network_end);
         mDiscoveryTask.execute();
+        foundHosts.clear();
     }
     @Override
     public void onTaskCompleted(boolean wasCancelled) {
@@ -124,8 +128,8 @@ public class NetworkSniffService extends Service implements TaskInterface {
             for(HostBean host: trackedHosts)
             {
                 if(!foundHosts.contains(host)) {
-                    //TODO send intent/triggers to Activity
                     Log.i(TAG, String.format("Tracked host not found: %s", host.hostname));
+                    sendToTasker(host, false);
                 }
             }
 
@@ -133,6 +137,14 @@ public class NetworkSniffService extends Service implements TaskInterface {
 
             initTask();
         }
+    }
+
+    private void sendToTasker(HostBean host, boolean isConnected) {
+        // TODO set time out before sending that a device is off
+        // Only send if there is a change, (was disconnect and became connected or vice-versa)
+        // dont send if there was no change since last run (it can break ANY`s logic)
+        BasicStateRunner.Companion.requestQuery(NetworkSniffService.this, ActivityDeviceState.class,
+                new DeviceUpdate(host, isConnected));
     }
 
     @Override
@@ -144,8 +156,8 @@ public class NetworkSniffService extends Service implements TaskInterface {
     public void onProgressUpdate(HostBean host) {
         if(trackedHosts.contains(host))
         {
-           // TODO send early intent
             Log.i(TAG, String.format("Found a tracked host: %s", host.hostname));
+            sendToTasker(host, true);
         }
         foundHosts.add(host);
     }

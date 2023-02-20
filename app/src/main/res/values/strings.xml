@@ -157,12 +157,15 @@
     <string name="preferences_error2">Error: Number of Threads must be between 1 and 256 !</string>
     <string name="preferences_error3">Error: File transfer interrupted !</string>
     <string name="preferences_error4">Error: Value is not a valid IP address !</string>
-    <string name="operator_mode">Operator Mode</string>
+    <string name="blank"> </string>
     <string name="operator_label">Operator To Use</string>
     <string name="operator_html_label">ALL devices or ANY device should flip the state</string>
     <string name="all">ALL</string>
     <string name="any">ANY</string>
-    <string name="operator_description">Select which operator to apply to devices in order to change state mode</string>
+    <string name="on">Connected</string>
+    <string name="off">Disconnected</string>
+    <string name="operator_description">Select which operator to apply to devices in order trigger the event</string>
+    <string name="state_description">Select which state of the devices should be detected in order trigger the event</string>
 
     <string-array name="method_discover_name">
         <item>Ping/connect (default)</item>

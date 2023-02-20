@@ -9,8 +9,6 @@
         android:layout_height="wrap_content"
         android:text="@string/operator_description" />
 
-
-
     <RadioGroup
         android:id="@+id/radioGroupOperator"
         android:layout_width="match_parent"
@@ -27,5 +25,32 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/any" />
+    </RadioGroup>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@android:color/darker_gray"/>
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/state_description" />
+
+    <RadioGroup
+        android:id="@+id/radioGroupState"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        <RadioButton
+            android:id="@+id/radioButtonOn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/on" />
+
+        <RadioButton
+            android:id="@+id/radioButtonOff"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/off" />
     </RadioGroup>
 </LinearLayout>

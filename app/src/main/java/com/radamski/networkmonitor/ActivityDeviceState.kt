@@ -4,24 +4,32 @@ import android.content.Context
 import android.os.Bundle
 import android.widget.RadioButton
 import android.widget.RadioGroup
-import com.joaomgcd.taskerpluginlibrary.condition.TaskerPluginRunnerConditionNoOutput
+import com.joaomgcd.taskerpluginlibrary.condition.TaskerPluginRunnerConditionEvent
 import com.joaomgcd.taskerpluginlibrary.config.*
 import com.joaomgcd.taskerpluginlibrary.input.TaskerInput
 import com.joaomgcd.taskerpluginlibrary.runner.*
 import com.radamski.networkmonitor.state.DeviceUpdate
-import com.radamski.networkmonitor.state.OperatorMode
+import com.radamski.networkmonitor.state.DetectionMode
 
-class BasicStateHelper(config: TaskerPluginConfig<OperatorMode>) : TaskerPluginConfigHelperConditionNoOutput<OperatorMode, DeviceUpdate, BasicStateRunner>(config) {
+class BasicStateHelper(config: TaskerPluginConfig<DetectionMode>) : TaskerPluginConfigHelper<DetectionMode, Unit, BasicStateRunner>(config) {
     override val runnerClass = BasicStateRunner::class.java
-    override val inputClass = OperatorMode::class.java
+    override val inputClass = DetectionMode::class.java
+    override val outputClass = Unit::class.java
 
     //Since Operator Mode is an int it wouldn't look right in the String Blurb. Here you can change how it looks in the blurb by adding a translation for its input key
     override val inputTranslationsForStringBlurb = HashMap<String, (Any?) -> String?>().apply {
-        put(OperatorMode.OP_MODE_KEY) {
-            if (it == OperatorMode.ALL) {
+        put(DetectionMode.OPERATOR_KEY) {
+            if (it == DetectionMode.ALL) {
                 config.context.getString(R.string.all)
             } else {
                 config.context.getString(R.string.any)
+            }
+        }
+        put(DetectionMode.STATE_KEY) {
+            if (it == DetectionMode.ON) {
+                config.context.getString(R.string.on)
+            } else {
+                config.context.getString(R.string.off)
             }
         }
     }
@@ -29,61 +37,80 @@ class BasicStateHelper(config: TaskerPluginConfig<OperatorMode>) : TaskerPluginC
     override val addDefaultStringBlurb: Boolean
         get() = super.addDefaultStringBlurb
 
-    override fun addToStringBlurb(input: TaskerInput<OperatorMode>, blurbBuilder: StringBuilder) {
+    override fun addToStringBlurb(input: TaskerInput<DetectionMode>, blurbBuilder: StringBuilder) {
         super.addToStringBlurb(input, blurbBuilder)
-        blurbBuilder.append("\nClick Invert in order to negate the operator.\nE.g. mark ALL radio button and Invert checkbox to trigger an event every time all devices are disconnected from the network")
+        blurbBuilder.append("\nTips go here")
     }
 }
 
-class ActivityDeviceState : ActivityConfigTaskerNoOutput<OperatorMode, BasicStateRunner, BasicStateHelper >() {
-    var radios: RadioGroup? = null;
-    override fun assignFromInput(input: TaskerInput<OperatorMode>) {
-        if (input.regular.opMode == OperatorMode.ALL) {
+class ActivityDeviceState : ActivityConfigTaskerNoOutput<DetectionMode, BasicStateRunner, BasicStateHelper >() {
+    var radiosState: RadioGroup? = null
+    var radiosOperator: RadioGroup? = null
+    override fun assignFromInput(input: TaskerInput<DetectionMode>) {
+        if (input.regular.operator == DetectionMode.ALL) {
             findViewById<RadioButton>(R.id.radioButtonAll).isChecked = true
         }
         else {
             findViewById<RadioButton>(R.id.radioButtonAny).isChecked = true
         }
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        setContentView(R.layout.activity_config_operator)
-        super.onCreate(savedInstanceState)
-        radios = findViewById(R.id.radioGroupOperator)
-    }
-
-    override val inputForTasker get() = TaskerInput(OperatorMode(radios?.let { modeFromId(it.checkedRadioButtonId) }))
-
-    private fun modeFromId(checkedRadioButtonId: Int): Int {
-        return if(R.id.radioButtonAll == checkedRadioButtonId) {
-            OperatorMode.ALL
-        } else {
-            OperatorMode.ANY
+        if (input.regular.state == DetectionMode.ON) {
+            findViewById<RadioButton>(R.id.radioButtonOn).isChecked = true
+        }
+        else {
+            findViewById<RadioButton>(R.id.radioButtonOff).isChecked = true
         }
     }
 
-    override val layoutResId = R.layout.activity_config_operator
-    override fun getNewHelper(config: TaskerPluginConfig<OperatorMode>) = BasicStateHelper(config)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        setContentView(R.layout.activity_config_device_mode)
+        super.onCreate(savedInstanceState)
+        radiosOperator = findViewById(R.id.radioGroupOperator)
+        radiosState = findViewById(R.id.radioGroupState)
+    }
+
+    override val inputForTasker get() = TaskerInput(DetectionMode(radiosOperator?.let { modeFromIdOp(it.checkedRadioButtonId) }, radiosState?.let { modeFromIdState(it.checkedRadioButtonId) }))
+
+    private fun modeFromIdOp(checkedRadioButtonId: Int): Int {
+        return if(R.id.radioButtonAll == checkedRadioButtonId) {
+            DetectionMode.ALL
+        } else {
+            DetectionMode.ANY
+        }
+    }
+    private fun modeFromIdState(checkedRadioButtonId: Int): Int {
+        return if(R.id.radioButtonOn == checkedRadioButtonId) {
+            DetectionMode.ON
+        } else {
+            DetectionMode.OFF
+        }
+    }
+
+    override val layoutResId = R.layout.activity_config_device_mode
+    override fun getNewHelper(config: TaskerPluginConfig<DetectionMode>) = BasicStateHelper(config)
 }
 
-class BasicStateRunner : TaskerPluginRunnerConditionNoOutput<OperatorMode, DeviceUpdate>() {
+class BasicStateRunner :  TaskerPluginRunnerConditionEvent<DetectionMode, Unit, DeviceUpdate>() {
 
-    override fun getSatisfiedCondition(context: Context, input: TaskerInput<OperatorMode>, update: DeviceUpdate?): TaskerPluginResultCondition<Unit> {
+    override fun getSatisfiedCondition(context: Context, input: TaskerInput<DetectionMode>, update: DeviceUpdate?): TaskerPluginResultCondition<Unit> {
         val host = update?.host ?: return TaskerPluginResultConditionUnknown()
-
+        // TODO check if isConnected is not null
         var output: TaskerPluginResultCondition<Unit> = TaskerPluginResultConditionUnsatisfied()
-        when(input.regular.opMode)
+        when(input.regular.operator)
         {
-            OperatorMode.ALL -> {
-                output =  TaskerPluginResultConditionSatisfied(context, Unit)
+            DetectionMode.ALL -> {
+                // TODO implement ALL Operator
+                // how to know the state of others?
+                // Check it here or in the service?
+                // output =  TaskerPluginResultConditionSatisfied(context, Unit)
             }
-            OperatorMode.ANY -> {
-                output =  TaskerPluginResultConditionSatisfied(context, Unit)
+            DetectionMode.ANY -> {
+                output = if(update.isConnected == (input.regular.state == DetectionMode.ON)) {
+                    TaskerPluginResultConditionSatisfied(context)
+                } else {
+                    TaskerPluginResultConditionUnsatisfied();
+                }
             }
         }
         return output
     }
-
-    override val isEvent: Boolean
-        get() = false // its a state
 }

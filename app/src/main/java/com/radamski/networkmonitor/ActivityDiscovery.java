@@ -30,8 +30,8 @@ import androidx.work.WorkManager;
 
 import com.radamski.networkmonitor.Network.HostBean;
 import com.radamski.networkmonitor.Network.NetInfo;
-import com.radamski.networkmonitor.Utils.TaskInterface;
 import com.radamski.networkmonitor.Utils.Prefs;
+import com.radamski.networkmonitor.Utils.TaskInterface;
 import com.radamski.networkmonitor.Utils.TinyDB;
 import com.radamski.networkmonitor.service.NetworkSniffService;
 import com.radamski.networkmonitor.service.RestartWorker;

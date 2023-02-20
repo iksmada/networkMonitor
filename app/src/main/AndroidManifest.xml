@@ -44,9 +44,9 @@
             android:name=".ActivityDeviceState"
             android:exported="true"
             android:icon="@android:drawable/stat_sys_phone_call"
-            android:label="Devices Connected">
+            android:label="Configuration">
             <intent-filter>
-                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_CONDITION" />
+                <action android:name="net.dinglisch.android.tasker.ACTION_EDIT_EVENT" />
             </intent-filter>
         </activity>
     </application>
