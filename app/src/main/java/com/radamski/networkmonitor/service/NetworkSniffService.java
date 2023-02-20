@@ -1,5 +1,6 @@
 package com.radamski.networkmonitor.service;
 
+import static com.radamski.networkmonitor.AbstractDiscoveryTask.FOUND_DEVICES;
 import static com.radamski.networkmonitor.AbstractDiscoveryTask.TRACKED_DEVICES;
 import static com.radamski.networkmonitor.Utils.Prefs.DEFAULT_IP_END;
 import static com.radamski.networkmonitor.Utils.Prefs.DEFAULT_IP_START;
@@ -34,7 +35,9 @@ import com.radamski.networkmonitor.receiver.RestartReceiver;
 import com.radamski.networkmonitor.state.DeviceUpdate;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class NetworkSniffService extends Service implements TaskInterface {
     private final String TAG = "NetworkSniffService";
@@ -47,7 +50,8 @@ public class NetworkSniffService extends Service implements TaskInterface {
     private long network_end;
     private TinyDB<HostBean> tinydb;
     private List<HostBean> trackedHosts;
-    private List<HostBean> foundHosts = new ArrayList<>();
+    public static List<HostBean> foundHosts = new ArrayList<>();
+    public static Map<HostBean, Boolean> pastState = new HashMap<>();
 
     public NetworkSniffService() {
         Log.d(TAG, "constructor called");
@@ -91,7 +95,6 @@ public class NetworkSniffService extends Service implements TaskInterface {
             stopSelf();
             return START_NOT_STICKY;
         }
-        trackedHosts = tinydb.getListObject(TRACKED_DEVICES, HostBean.class);
         // start task
         initTask();
 
@@ -124,13 +127,15 @@ public class NetworkSniffService extends Service implements TaskInterface {
     public void onTaskCompleted(boolean wasCancelled) {
         if(!wasCancelled) {
             trackedHosts = tinydb.getListObject(TRACKED_DEVICES, HostBean.class);
+            tinydb.putListObject(FOUND_DEVICES, foundHosts);
 
             for(HostBean host: trackedHosts)
             {
-                if(!foundHosts.contains(host)) {
+                if(foundHosts.contains(host))
+                    Log.i(TAG, String.format("Found a tracked host: %s", host.hostname));
+                else
                     Log.i(TAG, String.format("Tracked host not found: %s", host.hostname));
-                    sendToTasker(host, false);
-                }
+                sendToTasker(host, foundHosts.contains(host), false);
             }
 
             // sleep
@@ -139,12 +144,20 @@ public class NetworkSniffService extends Service implements TaskInterface {
         }
     }
 
-    private void sendToTasker(HostBean host, boolean isConnected) {
-        // TODO set time out before sending that a device is off
-        // Only send if there is a change, (was disconnect and became connected or vice-versa)
-        // dont send if there was no change since last run (it can break ANY`s logic)
-        BasicStateRunner.Companion.requestQuery(NetworkSniffService.this, ActivityDeviceState.class,
-                new DeviceUpdate(host, isConnected));
+    private void sendToTasker(HostBean host, boolean isConnected, boolean premature) {
+        trackedHosts = tinydb.getListObject(TRACKED_DEVICES, HostBean.class);
+        Boolean wasConnected = pastState.get(host);
+        if(wasConnected != null) {
+            // if state changed
+            if(wasConnected != isConnected) {
+                // TODO set time out (number of detection) before sending that a device is off
+                BasicStateRunner.Companion.requestQuery(NetworkSniffService.this, ActivityDeviceState.class,
+                        new DeviceUpdate(host, isConnected, premature));
+            }
+        }
+        if(!premature) {
+            pastState.put(host, isConnected);
+        }
     }
 
     @Override
@@ -156,8 +169,8 @@ public class NetworkSniffService extends Service implements TaskInterface {
     public void onProgressUpdate(HostBean host) {
         if(trackedHosts.contains(host))
         {
-            Log.i(TAG, String.format("Found a tracked host: %s", host.hostname));
-            sendToTasker(host, true);
+            Log.i(TAG, String.format("Found prematurely a tracked host: %s", host.hostname));
+            sendToTasker(host, true, true);
         }
         foundHosts.add(host);
     }

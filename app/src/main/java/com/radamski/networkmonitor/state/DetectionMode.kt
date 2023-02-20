@@ -28,4 +28,5 @@ class DeviceUpdate @JvmOverloads constructor(
     @field:TaskerInputObject("device") var host: HostBean = HostBean(),
     //@field:TaskerInputField("device") var host: String,
     @field:TaskerInputField("isConnected") var isConnected: Boolean? = null,
+    @field:TaskerInputField("premature") var premature: Boolean? = false,
 )

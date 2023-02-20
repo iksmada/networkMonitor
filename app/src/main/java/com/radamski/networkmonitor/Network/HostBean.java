@@ -107,10 +107,20 @@ public class HostBean implements Parcelable {
                 if (this.hostname != null && !this.hostname.equals(this.ipAddress)) {
                     return this.hostname.equals(otherHost.hostname);
                 }
-                // if the host name is not avaible we can only compare the mac address
+                // if the host name is not available we can only compare the mac address
                 return true;
             }
         }
         return false;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 31 * hash + hardwareAddress.hashCode();
+        if (hostname != null && !hostname.equals(ipAddress)) {
+            hash = 31 * hash + this.hostname.hashCode();
+        }
+        return hash;
     }
 }

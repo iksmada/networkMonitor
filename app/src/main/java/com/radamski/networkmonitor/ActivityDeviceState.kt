@@ -2,43 +2,41 @@ package com.radamski.networkmonitor
 
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import com.joaomgcd.taskerpluginlibrary.condition.TaskerPluginRunnerConditionEvent
 import com.joaomgcd.taskerpluginlibrary.config.*
 import com.joaomgcd.taskerpluginlibrary.input.TaskerInput
 import com.joaomgcd.taskerpluginlibrary.runner.*
-import com.radamski.networkmonitor.state.DeviceUpdate
+import com.radamski.networkmonitor.Network.HostBean
+import com.radamski.networkmonitor.Utils.TinyDB
 import com.radamski.networkmonitor.state.DetectionMode
+import com.radamski.networkmonitor.state.DeviceUpdate
 
 class BasicStateHelper(config: TaskerPluginConfig<DetectionMode>) : TaskerPluginConfigHelper<DetectionMode, Unit, BasicStateRunner>(config) {
     override val runnerClass = BasicStateRunner::class.java
     override val inputClass = DetectionMode::class.java
     override val outputClass = Unit::class.java
 
-    //Since Operator Mode is an int it wouldn't look right in the String Blurb. Here you can change how it looks in the blurb by adding a translation for its input key
-    override val inputTranslationsForStringBlurb = HashMap<String, (Any?) -> String?>().apply {
-        put(DetectionMode.OPERATOR_KEY) {
-            if (it == DetectionMode.ALL) {
-                config.context.getString(R.string.all)
+    override val addDefaultStringBlurb: Boolean
+        get() = false
+
+    override fun addToStringBlurb(input: TaskerInput<DetectionMode>, blurbBuilder: StringBuilder) {
+        val operator =
+            if (input.regular.operator == DetectionMode.ALL) {
+                config.context.getString(R.string.all) + " devices are"
             } else {
-                config.context.getString(R.string.any)
+                config.context.getString(R.string.any) + " device is"
             }
-        }
-        put(DetectionMode.STATE_KEY) {
-            if (it == DetectionMode.ON) {
+        val state =
+            if (input.regular.state == DetectionMode.ON) {
                 config.context.getString(R.string.on)
             } else {
                 config.context.getString(R.string.off)
             }
-        }
-    }
-
-    override val addDefaultStringBlurb: Boolean
-        get() = super.addDefaultStringBlurb
-
-    override fun addToStringBlurb(input: TaskerInput<DetectionMode>, blurbBuilder: StringBuilder) {
         super.addToStringBlurb(input, blurbBuilder)
+        blurbBuilder.append("When %s %s".format(operator, state))
         blurbBuilder.append("\nTips go here")
     }
 }
@@ -90,27 +88,59 @@ class ActivityDeviceState : ActivityConfigTaskerNoOutput<DetectionMode, BasicSta
 }
 
 class BasicStateRunner :  TaskerPluginRunnerConditionEvent<DetectionMode, Unit, DeviceUpdate>() {
+    private val TAG = "NetworkSniffEvents"
 
     override fun getSatisfiedCondition(context: Context, input: TaskerInput<DetectionMode>, update: DeviceUpdate?): TaskerPluginResultCondition<Unit> {
-        val host = update?.host ?: return TaskerPluginResultConditionUnknown()
         // TODO check if isConnected is not null
-        var output: TaskerPluginResultCondition<Unit> = TaskerPluginResultConditionUnsatisfied()
-        when(input.regular.operator)
-        {
-            DetectionMode.ALL -> {
-                // TODO implement ALL Operator
-                // how to know the state of others?
-                // Check it here or in the service?
-                // output =  TaskerPluginResultConditionSatisfied(context, Unit)
-            }
-            DetectionMode.ANY -> {
-                output = if(update.isConnected == (input.regular.state == DetectionMode.ON)) {
-                    TaskerPluginResultConditionSatisfied(context)
-                } else {
-                    TaskerPluginResultConditionUnsatisfied();
+        val output: TaskerPluginResultCondition<Unit> =
+            if(update?.isConnected == (input.regular.state == DetectionMode.ON)) {
+                when(input.regular.operator)
+                {
+                    DetectionMode.ANY -> {TaskerPluginResultConditionSatisfied(context)}
+                    DetectionMode.ALL -> {
+                        // TODO implement ALL Operator
+                        // how to know the state of others?
+                        // Check it here or in the service?
+                        // output =  TaskerPluginResultConditionSatisfied(context, Unit)
+                        val tinydb = TinyDB<HostBean>(context)
+                        val found =
+                            tinydb.getListObject(
+                                AbstractDiscoveryTask.FOUND_DEVICES,
+                                HostBean::class.java
+                            )
+                        if(found.isEmpty() || update.premature == true)
+                        {
+                            TaskerPluginResultConditionUnsatisfied()
+                        } else {
+                            val tracked =
+                                tinydb.getListObject(
+                                    AbstractDiscoveryTask.TRACKED_DEVICES,
+                                    HostBean::class.java
+                                )
+                            val comply: Boolean =
+                                when (input.regular.state) {
+                                    DetectionMode.ON -> {
+                                        tracked.all { host -> found.contains(host) }
+                                    }
+                                    DetectionMode.OFF -> {
+                                        tracked.all { host -> !found.contains(host) }
+                                    }
+                                    else -> {
+                                        false
+                                    }
+                                }
+                            if (comply)
+                                TaskerPluginResultConditionSatisfied(context)
+                            else
+                                TaskerPluginResultConditionUnsatisfied()
+                        }
+                    }
+                    else -> {TaskerPluginResultConditionUnsatisfied()}
                 }
+            } else {
+                TaskerPluginResultConditionUnsatisfied()
             }
-        }
+        Log.i(TAG, output.toString());
         return output
     }
 }

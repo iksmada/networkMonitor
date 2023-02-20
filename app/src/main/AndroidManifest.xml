@@ -44,7 +44,7 @@
             android:name=".ActivityDeviceState"
             android:exported="true"
             android:icon="@android:drawable/stat_sys_phone_call"
-            android:label="Configuration">
+            android:label="Network Monitor">
             <intent-filter>
                 <action android:name="net.dinglisch.android.tasker.ACTION_EDIT_EVENT" />
             </intent-filter>
