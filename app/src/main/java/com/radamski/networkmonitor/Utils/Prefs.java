@@ -87,6 +87,8 @@ public class Prefs extends PreferenceActivity implements OnSharedPreferenceChang
 
     public final static String KEY_TIMEOUT_DISCOVER = "timeout_discover";
     public final static String DEFAULT_TIMEOUT_DISCOVER = "1000";
+    public final static String KEY_TRIGGER_COUNTDOWN = "trigger_countdown";
+    public final static int DEFAULT_TRIGGER_COUNTDOWN = 3;
 
     public static final String KEY_BANNER = "banner";
     public static final boolean DEFAULT_BANNER = true;

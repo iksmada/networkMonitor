@@ -20,12 +20,12 @@ import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.Window;
 
-import java.io.IOException;
-import java.lang.ref.WeakReference;
-
 import com.radamski.networkmonitor.Network.NetInfo;
 import com.radamski.networkmonitor.Utils.Db;
 import com.radamski.networkmonitor.Utils.Prefs;
+
+import java.io.IOException;
+import java.lang.ref.WeakReference;
 
 final public class ActivityInit extends Activity {
 

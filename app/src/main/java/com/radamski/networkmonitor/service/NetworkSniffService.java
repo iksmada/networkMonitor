@@ -1,11 +1,13 @@
 package com.radamski.networkmonitor.service;
 
-import static com.radamski.networkmonitor.AbstractDiscoveryTask.FOUND_DEVICES;
+import static com.radamski.networkmonitor.AbstractDiscoveryTask.CONNECTED_TRACKED_DEVICES;
 import static com.radamski.networkmonitor.AbstractDiscoveryTask.TRACKED_DEVICES;
 import static com.radamski.networkmonitor.Utils.Prefs.DEFAULT_IP_END;
 import static com.radamski.networkmonitor.Utils.Prefs.DEFAULT_IP_START;
+import static com.radamski.networkmonitor.Utils.Prefs.DEFAULT_TRIGGER_COUNTDOWN;
 import static com.radamski.networkmonitor.Utils.Prefs.KEY_IP_END;
 import static com.radamski.networkmonitor.Utils.Prefs.KEY_IP_START;
+import static com.radamski.networkmonitor.Utils.Prefs.KEY_TRIGGER_COUNTDOWN;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -38,6 +40,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class NetworkSniffService extends Service implements TaskInterface {
     private final String TAG = "NetworkSniffService";
@@ -52,6 +55,8 @@ public class NetworkSniffService extends Service implements TaskInterface {
     private List<HostBean> trackedHosts;
     public static List<HostBean> foundHosts = new ArrayList<>();
     public static Map<HostBean, Boolean> pastState = new HashMap<>();
+    public static Map<HostBean, Integer> countDown = new HashMap<>();
+    private SharedPreferences prefs;
 
     public NetworkSniffService() {
         Log.d(TAG, "constructor called");
@@ -65,6 +70,7 @@ public class NetworkSniffService extends Service implements TaskInterface {
         createNotificationChannel();
         isServiceRunning = true;
         tinydb = new TinyDB<>(this);
+        prefs = PreferenceManager.getDefaultSharedPreferences(this);
     }
 
     @Override
@@ -127,7 +133,6 @@ public class NetworkSniffService extends Service implements TaskInterface {
     public void onTaskCompleted(boolean wasCancelled) {
         if(!wasCancelled) {
             trackedHosts = tinydb.getListObject(TRACKED_DEVICES, HostBean.class);
-            tinydb.putListObject(FOUND_DEVICES, foundHosts);
 
             for(HostBean host: trackedHosts)
             {
@@ -135,7 +140,7 @@ public class NetworkSniffService extends Service implements TaskInterface {
                     Log.i(TAG, String.format("Found a tracked host: %s", host.hostname));
                 else
                     Log.i(TAG, String.format("Tracked host not found: %s", host.hostname));
-                sendToTasker(host, foundHosts.contains(host), false);
+                checkHostState(host, foundHosts.contains(host), false);
             }
 
             // sleep
@@ -144,20 +149,56 @@ public class NetworkSniffService extends Service implements TaskInterface {
         }
     }
 
-    private void sendToTasker(HostBean host, boolean isConnected, boolean premature) {
-        trackedHosts = tinydb.getListObject(TRACKED_DEVICES, HostBean.class);
+    private void checkHostState(HostBean host, Boolean isConnected, boolean premature) {
         Boolean wasConnected = pastState.get(host);
-        if(wasConnected != null) {
-            // if state changed
-            if(wasConnected != isConnected) {
-                // TODO set time out (number of detection) before sending that a device is off
-                BasicStateRunner.Companion.requestQuery(NetworkSniffService.this, ActivityDeviceState.class,
-                        new DeviceUpdate(host, isConnected, premature));
+        if (wasConnected == null) {
+            pastState.put(host, isConnected);
+        } else {
+            if (isConnected) {
+                // this is never false positive, we can trust on this detection
+                if (!wasConnected) {
+                    sendToTasker(host, isConnected, premature);
+                }
+                if(countDown.containsKey(host)) {
+                    countDown.remove(host);
+                    Log.i(TAG, String.format("False positive of %s - isConnected=%s", host.hostname, isConnected));
+                }
+            } else {
+                // assuming premature is always false
+                // Disconnection can be a false positive, we can't trust on this detection
+                countDown.computeIfAbsent(host , hostBean -> {
+                    // start count down (number of detection) before sending that a device is disconnected
+                    if (wasConnected) {
+                        return  0;
+                    }
+                    else {
+                        // wont add the host entry to the countDown map
+                        return null;
+                    }
+                });
+                countDown.computeIfPresent(host, (hostBean, count) -> {
+                    count += 1;
+                    Log.i(TAG, String.format("Monitoring %s with isConnected=%s count=%d", host.hostname, isConnected, count));
+                    // TODO add this options to Prefs activity
+                    int countToTrigger = prefs.getInt(KEY_TRIGGER_COUNTDOWN, DEFAULT_TRIGGER_COUNTDOWN);
+                    // check if we need to trigger someone finally
+                    if (countToTrigger == count) {
+                        sendToTasker(host, isConnected, premature);
+                        countDown.remove(host);
+                    }
+                    return count;
+                });
             }
         }
-        if(!premature) {
-            pastState.put(host, isConnected);
-        }
+    }
+
+    private void sendToTasker(HostBean host, Boolean isConnected, boolean premature) {
+        pastState.put(host, isConnected);
+        //                                        filter for isConnected == true
+        List<HostBean> connected = pastState.entrySet().stream().filter(Map.Entry::getValue).map(Map.Entry::getKey).collect(Collectors.toList());
+        tinydb.putListObject(CONNECTED_TRACKED_DEVICES, connected);
+        BasicStateRunner.Companion.requestQuery(NetworkSniffService.this, ActivityDeviceState.class,
+                new DeviceUpdate(host, isConnected, premature));
     }
 
     @Override
@@ -170,7 +211,7 @@ public class NetworkSniffService extends Service implements TaskInterface {
         if(trackedHosts.contains(host))
         {
             Log.i(TAG, String.format("Found prematurely a tracked host: %s", host.hostname));
-            sendToTasker(host, true, true);
+            checkHostState(host, true, true);
         }
         foundHosts.add(host);
     }
@@ -195,7 +236,7 @@ public class NetworkSniffService extends Service implements TaskInterface {
             mDiscoveryTask.cancel(true);
         }
         isServiceRunning = false;
-        stopForeground(true);
+        stopForeground(STOP_FOREGROUND_REMOVE);
 
         trackedHosts = tinydb.getListObject(TRACKED_DEVICES, HostBean.class);
 

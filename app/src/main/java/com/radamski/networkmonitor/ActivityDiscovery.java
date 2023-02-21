@@ -10,7 +10,11 @@ import static com.radamski.networkmonitor.AbstractDiscoveryTask.TRACKED_DEVICES;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -99,6 +103,16 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
         trackedList.addHeaderView(header);
 
         startServiceViaWorker();
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Intent intent = new Intent();
+            String packageName = getPackageName();
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                intent.setData(Uri.parse("package:" + packageName));
+                startActivity(intent);
+            }
+        }
     }
 
     @Override
@@ -363,6 +377,7 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
         if (!NetworkSniffService.isServiceRunning && !trackedHosts.isEmpty()) {
             NetworkSniffService.breakLoop = false;
             Intent serviceIntent = new Intent(this, NetworkSniffService.class);
+            serviceIntent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
             ContextCompat.startForegroundService(this, serviceIntent);
         }
     }

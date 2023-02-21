@@ -4,7 +4,7 @@
  Licensed under GNU's GPL 2, see README
 -->
 <resources>
-    <string name="app_name">Network Discovery</string>
+    <string name="app_name">Network Monitor</string>
     <string name="app_loading">Loading</string>
     <string name="btn_yes">Yes</string>
     <string name="btn_no">No</string>

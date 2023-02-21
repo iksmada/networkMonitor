@@ -91,24 +91,29 @@ class BasicStateRunner :  TaskerPluginRunnerConditionEvent<DetectionMode, Unit, 
     private val TAG = "NetworkSniffEvents"
 
     override fun getSatisfiedCondition(context: Context, input: TaskerInput<DetectionMode>, update: DeviceUpdate?): TaskerPluginResultCondition<Unit> {
-        // TODO check if isConnected is not null
+        Log.i(TAG, "Received update from %s with flags:{isConnected:%s, premature:%s}".format(update?.host?.hostname, update?.isConnected, update?.premature))
         val output: TaskerPluginResultCondition<Unit> =
             if(update?.isConnected == (input.regular.state == DetectionMode.ON)) {
                 when(input.regular.operator)
                 {
-                    DetectionMode.ANY -> {TaskerPluginResultConditionSatisfied(context)}
+                    DetectionMode.ANY -> {
+                        if(update.premature == false && update.isConnected == true) // only send connected event when detected prematurely
+                            TaskerPluginResultConditionUnsatisfied()
+                        else
+                            TaskerPluginResultConditionSatisfied(context)
+                    }
                     DetectionMode.ALL -> {
                         // TODO implement ALL Operator
                         // how to know the state of others?
                         // Check it here or in the service?
                         // output =  TaskerPluginResultConditionSatisfied(context, Unit)
                         val tinydb = TinyDB<HostBean>(context)
-                        val found =
+                        val connected =
                             tinydb.getListObject(
-                                AbstractDiscoveryTask.FOUND_DEVICES,
+                                AbstractDiscoveryTask.CONNECTED_TRACKED_DEVICES,
                                 HostBean::class.java
                             )
-                        if(found.isEmpty() || update.premature == true)
+                        if(update.premature == true)
                         {
                             TaskerPluginResultConditionUnsatisfied()
                         } else {
@@ -120,10 +125,10 @@ class BasicStateRunner :  TaskerPluginRunnerConditionEvent<DetectionMode, Unit, 
                             val comply: Boolean =
                                 when (input.regular.state) {
                                     DetectionMode.ON -> {
-                                        tracked.all { host -> found.contains(host) }
+                                        tracked.all { host -> connected.contains(host) }
                                     }
                                     DetectionMode.OFF -> {
-                                        tracked.all { host -> !found.contains(host) }
+                                        tracked.all { host -> !connected.contains(host) }
                                     }
                                     else -> {
                                         false
@@ -140,7 +145,10 @@ class BasicStateRunner :  TaskerPluginRunnerConditionEvent<DetectionMode, Unit, 
             } else {
                 TaskerPluginResultConditionUnsatisfied()
             }
-        Log.i(TAG, output.toString());
+        val state = if (input.regular.state == DetectionMode.ON) "connected" else "disconnected"
+        val operator = if (input.regular.operator == DetectionMode.ALL) "ALL" else "ANY"
+        val result = if (output.success) "satisfied" else "unsatisfied"
+        Log.i(TAG, "Monitoring %s %s is %s".format( operator, state, result));
         return output
     }
 }
