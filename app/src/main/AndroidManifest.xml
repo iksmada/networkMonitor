@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application
         android:allowBackup="true"
@@ -19,12 +20,28 @@
         <service
             android:name=".service.NetworkSniffService"
             android:enabled="true"
-            android:exported="true" />
+            android:exported="false"
+            android:directBootAware="true"
+            android:isolatedProcess="false" />
 
         <receiver
-            android:name=".receiver.RestartReceiver"
+            android:name=".receiver.RestartServiceReceiver"
             android:enabled="true"
             android:exported="false">
+        </receiver>
+
+        <receiver
+            android:name=".receiver.NetworkSniffReceiver"
+            android:enabled="true"
+            android:exported="false">
+        </receiver>
+
+        <receiver
+            android:name=".receiver.AlarmPermissionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
         </receiver>
 
         <activity

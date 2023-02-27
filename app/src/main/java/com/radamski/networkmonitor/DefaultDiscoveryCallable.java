@@ -10,6 +10,8 @@ import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
+import androidx.work.ListenableWorker;
+
 import com.radamski.networkmonitor.Network.HardwareAddress;
 import com.radamski.networkmonitor.Network.HostBean;
 import com.radamski.networkmonitor.Network.NetInfo;
@@ -23,13 +25,20 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class DefaultDiscoveryTask extends AbstractDiscoveryTask {
+public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Result> {
 
-    private final String TAG = "DefaultDiscoveryTask";
+    private final String TAG = "DefaultDiscoveryCallable";
+
+    protected int hosts_done = 0;
+    protected long ip;
+    protected long start = 0;
+    protected long end = 0;
+    protected long size = 0;
     private final static int[] DPORTS = { 139, 445, 22, 80 };
     private final static int TIMEOUT_SCAN = 900; // seconds
     private final static int TIMEOUT_SHUTDOWN = 10; // seconds
@@ -38,14 +47,15 @@ public class DefaultDiscoveryTask extends AbstractDiscoveryTask {
     private final SharedPreferences prefs;
     private final NetInfo net;
     private final boolean useThreads;
+    private final TaskInterface comm;
     private int pt_move = 2; // 1=backward 2=forward
     private ExecutorService mPool;
     private boolean doRateControl;
     private RateControl mRateControl;
     private Save mSave;
 
-    public DefaultDiscoveryTask(TaskInterface comm, Context ctxt, boolean useThreads) {
-        super(comm);
+    public DefaultDiscoveryCallable(TaskInterface comm, Context ctxt, boolean useThreads) {
+        this.comm = comm;
         prefs = PreferenceManager.getDefaultSharedPreferences(ctxt);
         net = new NetInfo(ctxt);
         mRateControl = new RateControl();
@@ -53,19 +63,24 @@ public class DefaultDiscoveryTask extends AbstractDiscoveryTask {
         this.useThreads = useThreads;
     }
 
-    @Override
-    protected void onPreExecute() {
-        super.onPreExecute();
-        size = (int) (end - start + 1);
-        doRateControl = prefs.getBoolean(Prefs.KEY_RATECTRL_ENABLE,
-                Prefs.DEFAULT_RATECTRL_ENABLE);
+    public void setNetwork(long ip, long start, long end) {
+        this.ip = ip;
+        this.start = start;
+        this.end = end;
+        this.size = (int) (end - start + 1);
     }
 
     @Override
-    protected Void doInBackground(Void... params) {
+    public ListenableWorker.Result call() {
+        // onPreExecute starts
+        doRateControl = prefs.getBoolean(Prefs.KEY_RATECTRL_ENABLE,
+                Prefs.DEFAULT_RATECTRL_ENABLE);
+        // onPreExecute ends
+        // doInBackground starts
         Log.v(TAG, "start=" + NetInfo.getIpFromLongUnsigned(start) + " (" + start
                 + "), end=" + NetInfo.getIpFromLongUnsigned(end) + " (" + end
                 + "), length=" + size);
+        ListenableWorker.Result result = ListenableWorker.Result.success();
         mPool = Executors.newFixedThreadPool(THREADS);
         if (ip <= end && ip >= start && useThreads) {
             Log.i(TAG, "Back and forth scanning");
@@ -96,7 +111,7 @@ public class DefaultDiscoveryTask extends AbstractDiscoveryTask {
                 }
             }
         } else {
-            Log.i(TAG, "Sequential scanning");
+            Log.i(TAG, "Sequencial scanning");
             for (long i = start; i <= end; i++) {
                 launch(i);
             }
@@ -108,6 +123,8 @@ public class DefaultDiscoveryTask extends AbstractDiscoveryTask {
                 Log.w(TAG, "Shutting down pool");
                 if(!mPool.awaitTermination(TIMEOUT_SHUTDOWN, TimeUnit.SECONDS)){
                     Log.w(TAG, "Pool did not terminate");
+                    comm.onTaskCompleted(true);
+                    result = ListenableWorker.Result.retry();
                 }
             }
         } catch (InterruptedException e){
@@ -117,18 +134,12 @@ public class DefaultDiscoveryTask extends AbstractDiscoveryTask {
         } finally {
             mSave.closeDb();
         }
-        return null;
-    }
+        // doInBackground ends
+        // onPostExecute starts
+        comm.onTaskCompleted(false);
+        // onPostExecute ends
 
-    @Override
-    protected void onCancelled() {
-        if (mPool != null) {
-            synchronized (mPool) {
-                mPool.shutdownNow();
-                // FIXME: Prevents some task to end (and close the Save DB)
-            }
-        }
-        super.onCancelled();
+        return result;
     }
 
     private void launch(long i) {
@@ -143,11 +154,12 @@ public class DefaultDiscoveryTask extends AbstractDiscoveryTask {
     }
 
     private int getRate() {
-        if (doRateControl) {
-            return mRateControl.rate;
-        }
         return Integer.parseInt(prefs.getString(Prefs.KEY_TIMEOUT_DISCOVER,
                 Prefs.DEFAULT_TIMEOUT_DISCOVER));
+    }
+
+    public ExecutorService getExecutor() {
+        return mPool;
     }
 
     private class CheckRunnable implements Runnable {
@@ -158,9 +170,6 @@ public class DefaultDiscoveryTask extends AbstractDiscoveryTask {
         }
 
         public void run() {
-            if(isCancelled()) {
-                publish(null);
-            }
             Log.d(TAG, "run="+addr);
             // Create host object
             final HostBean host = new HostBean();
@@ -171,13 +180,6 @@ public class DefaultDiscoveryTask extends AbstractDiscoveryTask {
                 // Rate control check
                 if (doRateControl && mRateControl.indicator != null && hosts_done % mRateMult == 0) {
                     mRateControl.adaptRate();
-                }
-                // Arp Check #1
-                host.hardwareAddress = HardwareAddress.getHardwareAddress(addr);
-                if(!NetInfo.NOMAC.equals(host.hardwareAddress)){
-                    Log.i(TAG, "found using arp #1 "+addr);
-                    publish(host);
-                    return;
                 }
                 // Native InetAddress check
                 if (h.isReachable(getRate())) {
@@ -190,13 +192,7 @@ public class DefaultDiscoveryTask extends AbstractDiscoveryTask {
                     }
                     return;
                 }
-                // Arp Check #2
-                host.hardwareAddress = HardwareAddress.getHardwareAddress(addr);
-                if(!NetInfo.NOMAC.equals(host.hardwareAddress)){
-                    Log.i(TAG, "found using arp #2 "+addr);
-                    publish(host);
-                    return;
-                }
+
                 // Custom check
                 int port;
                 // TODO: Get ports from options
@@ -205,7 +201,7 @@ public class DefaultDiscoveryTask extends AbstractDiscoveryTask {
                     try {
                         s.bind(null);
                         s.connect(new InetSocketAddress(addr, DPORTS[i]), getRate());
-                        Log.v(TAG, "found using TCP connect "+addr+" on port=" + DPORTS[i]);
+                        Log.i(TAG, "found using TCP connect "+addr+" on port=" + DPORTS[i]);
                     } catch (IOException e) {
                     } catch (IllegalArgumentException e) {
                     } finally {
@@ -223,13 +219,6 @@ public class DefaultDiscoveryTask extends AbstractDiscoveryTask {
                     return;
                 }
                 */
-                // Arp Check #3
-                host.hardwareAddress = HardwareAddress.getHardwareAddress(addr);
-                if(!NetInfo.NOMAC.equals(host.hardwareAddress)){
-                    Log.i(TAG, "found using arp #3 "+addr);
-                    publish(host);
-                    return;
-                }
                 publish(null);
 
             } catch (IOException e) {
@@ -242,7 +231,6 @@ public class DefaultDiscoveryTask extends AbstractDiscoveryTask {
     private void publish(final HostBean host) {
         hosts_done++;
         if(host == null){
-            publishProgress((HostBean) null);
             return; 
         }
 
@@ -276,6 +264,6 @@ public class DefaultDiscoveryTask extends AbstractDiscoveryTask {
             //}
         }
 
-        publishProgress(host);
+        comm.onProgressUpdate(host);
     }
 }

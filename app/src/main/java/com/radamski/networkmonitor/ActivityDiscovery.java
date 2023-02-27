@@ -7,6 +7,8 @@ package com.radamski.networkmonitor;
 
 import static com.radamski.networkmonitor.AbstractDiscoveryTask.TRACKED_DEVICES;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -20,6 +22,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -29,16 +32,20 @@ import android.widget.Toast;
 
 import androidx.core.content.ContextCompat;
 import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.ExistingWorkPolicy;
+import androidx.work.OneTimeWorkRequest;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 
 import com.radamski.networkmonitor.Network.HostBean;
 import com.radamski.networkmonitor.Network.NetInfo;
+import com.radamski.networkmonitor.Utils.Manager;
 import com.radamski.networkmonitor.Utils.Prefs;
 import com.radamski.networkmonitor.Utils.TaskInterface;
 import com.radamski.networkmonitor.Utils.TinyDB;
+import com.radamski.networkmonitor.receiver.NetworkSniffReceiver;
 import com.radamski.networkmonitor.service.NetworkSniffService;
-import com.radamski.networkmonitor.service.RestartWorker;
+import com.radamski.networkmonitor.service.NetworkSniffWorker;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,6 +55,8 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
 
     private final String TAG = "ActivityDiscovery";
     public static final String PKG = "com.radamski.networkmonitor";
+    public static final String UNIQUE_WORK_NAME_PERIODIC = "StartNetworkSniffWorker";
+    public static final String UNIQUE_WORK_NAME = "StartNetworkSniffWorkerOneTime";
     public final static long VIBRATE = (long) 250;
     public final static int SCAN_PORT_RESULT = 1;
     public static final int MENU_SCAN_SINGLE = 0;
@@ -75,6 +84,7 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         requestWindowFeature(Window.FEATURE_PROGRESS);
         requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
         setContentView(R.layout.discovery);
@@ -82,7 +92,7 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
         tinydb = new TinyDB<>(ctxt);
 
         // Discover
-        btn_discover = (Button) findViewById(R.id.btn_discover);
+        btn_discover = findViewById(R.id.btn_discover);
         btn_discover.setOnClickListener(v -> startDiscovering());
 
         // Discover Hosts list
@@ -92,7 +102,6 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
         discoverList.setItemsCanFocus(false);
         // Tracked Hosts list
         trackedHosts = tinydb.getListObject(TRACKED_DEVICES, HostBean.class);
-        startService();
         trackedAdapter = new HostsAdapter(ctxt, false, trackedHosts);
         trackedList = (ListView) findViewById(R.id.tracked);
         trackedList.setAdapter(trackedAdapter);
@@ -102,17 +111,49 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
         header.setText(R.string.tracked_title);
         trackedList.addHeaderView(header);
 
-        startServiceViaWorker();
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Intent intent = new Intent();
-            String packageName = getPackageName();
-            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
-            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-                intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-                intent.setData(Uri.parse("package:" + packageName));
-                startActivity(intent);
-            }
+
+        String packageName = getPackageName();
+        // TODO add option to start via alarmManager or WorkManager
+        Manager manager = Manager.getById(prefs.getInt(Prefs.KEY_MANAGER, Prefs.DEFAULT_MANAGER));
+
+        switch (manager) {
+            case ALARM_MANAGER:
+                AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    if (alarmManager.canScheduleExactAlarms()) {
+                        scheduleAlarm(alarmManager, ctxt);
+                    } else {
+                        Intent intent = new Intent();
+                        intent.setAction(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+                        intent.setData(Uri.parse("package:" + packageName));
+                        startActivity(intent);
+                    }
+                } else {
+                    scheduleAlarm(alarmManager, ctxt);
+                }
+                break;
+            case SERVICE:
+                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+                    if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                        Intent intent = new Intent();
+                        intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                        intent.setData(Uri.parse("package:" + packageName));
+                        startActivity(intent);
+                    }
+                }
+                startService();
+                break;
+            case WORK_MANAGER:
+                startServiceViaWorker();
+                break;
         }
+    }
+
+    public static void scheduleAlarm(AlarmManager alarmManager, Context context) {
+        Intent i = new Intent(context, NetworkSniffReceiver.class);
+        PendingIntent pi = PendingIntent.getBroadcast(context, 0, i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP,  System.currentTimeMillis(), 300000L, pi);
     }
 
     @Override
@@ -293,7 +334,7 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
      */
     private void startDiscovering() {
         stopService();
-        mDiscoveryTask = new DefaultDiscoveryTask(ActivityDiscovery.this, ActivityDiscovery.this);
+        mDiscoveryTask = new DefaultDiscoveryTask(ActivityDiscovery.this, ActivityDiscovery.this, true);
         mDiscoveryTask.setNetwork(network_ip, network_start, network_end);
         mDiscoveryTask.execute();
         btn_discover.setText(R.string.btn_discover_cancel);
@@ -317,7 +358,10 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
             trackedAdapter.notifyDataSetChanged();
             discoverList.setVisibility(View.GONE);
             trackedList.setVisibility(View.VISIBLE);
-            startService();
+            Manager manager = Manager.getById(prefs.getInt(Prefs.KEY_MANAGER, Prefs.DEFAULT_MANAGER));
+            if(manager == Manager.SERVICE) {
+                startService();
+            }
         }
         else {
             makeToast(R.string.discover_finished);
@@ -377,7 +421,6 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
         if (!NetworkSniffService.isServiceRunning && !trackedHosts.isEmpty()) {
             NetworkSniffService.breakLoop = false;
             Intent serviceIntent = new Intent(this, NetworkSniffService.class);
-            serviceIntent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
             ContextCompat.startForegroundService(this, serviceIntent);
         }
     }
@@ -393,20 +436,25 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
 
     public void startServiceViaWorker() {
         Log.d(TAG, "startServiceViaWorker called");
-        String UNIQUE_WORK_NAME = "StartNetworkSniffServiceViaWorker";
         WorkManager workManager = WorkManager.getInstance(this);
 
-        // As per Documentation: The minimum repeat interval that can be defined is 15 minutes
-        // (same as the JobScheduler API), but in practice 15 doesn't work. Using 16 here
-        PeriodicWorkRequest request =
+        // run now
+        OneTimeWorkRequest onceRequest = new OneTimeWorkRequest.Builder(NetworkSniffWorker.class).build();
+        workManager.enqueueUniqueWork(UNIQUE_WORK_NAME, ExistingWorkPolicy.REPLACE, onceRequest);
+
+
+        // As per Documentation: The minimum repeat interval that can be defined is 15 minutes with 5 flex minutes
+        PeriodicWorkRequest periodicRequest =
                 new PeriodicWorkRequest.Builder(
-                        RestartWorker.class,
-                        16,
-                        TimeUnit.MINUTES)
+                        NetworkSniffWorker.class,
+                        PeriodicWorkRequest.MIN_PERIODIC_INTERVAL_MILLIS,
+                        TimeUnit.MILLISECONDS,
+                        PeriodicWorkRequest.MIN_PERIODIC_FLEX_MILLIS,
+                        TimeUnit.MILLISECONDS)
                         .build();
 
         // to schedule a unique work, no matter how many times app is opened i.e. startServiceViaWorker gets called
         // do check for AutoStart permission
-        workManager.enqueueUniquePeriodicWork(UNIQUE_WORK_NAME, ExistingPeriodicWorkPolicy.KEEP, request);
+        workManager.enqueueUniquePeriodicWork(UNIQUE_WORK_NAME_PERIODIC, ExistingPeriodicWorkPolicy.UPDATE, periodicRequest);
     }
 }

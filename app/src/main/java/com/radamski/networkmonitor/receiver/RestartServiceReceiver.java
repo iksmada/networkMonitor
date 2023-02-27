@@ -8,10 +8,10 @@ import android.util.Log;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 
-import com.radamski.networkmonitor.service.RestartWorker;
+import com.radamski.networkmonitor.service.RestartServiceWorker;
 
-public class RestartReceiver extends BroadcastReceiver {
-    private final String TAG = "RestartReceiver";
+public class RestartServiceReceiver extends BroadcastReceiver {
+    private final String TAG = "RestartServiceReceiver";
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -22,7 +22,7 @@ public class RestartReceiver extends BroadcastReceiver {
         // (only manifest-declared receiver) is run at low priority and hence eventually
         // killed by Android.
         WorkManager workManager = WorkManager.getInstance(context);
-        OneTimeWorkRequest startServiceRequest = new OneTimeWorkRequest.Builder(RestartWorker.class)
+        OneTimeWorkRequest startServiceRequest = new OneTimeWorkRequest.Builder(RestartServiceWorker.class)
                 .build();
         workManager.enqueue(startServiceRequest);
     }

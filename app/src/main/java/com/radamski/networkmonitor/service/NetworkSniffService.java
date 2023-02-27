@@ -33,7 +33,7 @@ import com.radamski.networkmonitor.R;
 import com.radamski.networkmonitor.Utils.TaskInterface;
 import com.radamski.networkmonitor.Utils.TinyDB;
 import com.radamski.networkmonitor.receiver.NetwortkStatusReceiver;
-import com.radamski.networkmonitor.receiver.RestartReceiver;
+import com.radamski.networkmonitor.receiver.RestartServiceReceiver;
 import com.radamski.networkmonitor.state.DeviceUpdate;
 
 import java.util.ArrayList;
@@ -59,14 +59,14 @@ public class NetworkSniffService extends Service implements TaskInterface {
     private SharedPreferences prefs;
 
     public NetworkSniffService() {
-        Log.d(TAG, "constructor called");
+        Log.i(TAG, "constructor called");
         isServiceRunning = false;
     }
 
     @Override
     public void onCreate() {
         super.onCreate();
-        Log.d(TAG, "onCreate called");
+        Log.i(TAG, "onCreate called");
         createNotificationChannel();
         isServiceRunning = true;
         tinydb = new TinyDB<>(this);
@@ -88,7 +88,6 @@ public class NetworkSniffService extends Service implements TaskInterface {
         status.onReceive(this, new Intent());
 
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         NetInfo net = new NetInfo(this);
         network_ip = NetInfo.getUnsignedLongFromIp(net.ip);
         network_start = NetInfo.getUnsignedLongFromIp(prefs.getString(KEY_IP_START, DEFAULT_IP_START));
@@ -124,7 +123,7 @@ public class NetworkSniffService extends Service implements TaskInterface {
     private void initTask() {
         // start again
         Log.i(TAG, "Starting DefaultDiscoveryTask");
-        mDiscoveryTask = new DefaultDiscoveryTask(this, this);
+        mDiscoveryTask = new DefaultDiscoveryTask(this, this, true);
         mDiscoveryTask.setNetwork(network_ip, network_start, network_end);
         mDiscoveryTask.execute();
         foundHosts.clear();
@@ -229,9 +228,17 @@ public class NetworkSniffService extends Service implements TaskInterface {
         }
     }
 
+    //method from Service class
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        Log.i(TAG, "onTaskRemoved called");
+        // TODO restart the service?
+        super.onTaskRemoved(rootIntent);
+    }
+
     @Override
     public void onDestroy() {
-        Log.d(TAG, "onDestroy called");
+        Log.i(TAG, "onDestroy called");
         if(mDiscoveryTask != null) {
             mDiscoveryTask.cancel(true);
         }
@@ -241,8 +248,8 @@ public class NetworkSniffService extends Service implements TaskInterface {
         trackedHosts = tinydb.getListObject(TRACKED_DEVICES, HostBean.class);
 
         if(!trackedHosts.isEmpty() && !breakLoop) {
-            // call RestartReceiver which will restart this service via a worker
-            Intent broadcastIntent = new Intent(this, RestartReceiver.class);
+            // call RestartServiceReceiver which will restart this service via a worker
+            Intent broadcastIntent = new Intent(this, RestartServiceReceiver.class);
             sendBroadcast(broadcastIntent);
         }
         super.onDestroy();

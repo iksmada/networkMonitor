@@ -9,6 +9,8 @@ package com.radamski.networkmonitor.Network;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import androidx.annotation.NonNull;
+
 import com.joaomgcd.taskerpluginlibrary.input.TaskerInputField;
 import com.joaomgcd.taskerpluginlibrary.input.TaskerInputObject;
 import com.radamski.networkmonitor.ActivityDiscovery;
@@ -122,5 +124,15 @@ public class HostBean implements Parcelable {
             hash = 31 * hash + this.hostname.hashCode();
         }
         return hash;
+    }
+
+    @NonNull
+    @Override
+    public String toString() {
+        if (hostname != null && !hostname.equals(ipAddress)) {
+            return String.format("%s (%s)", hostname, ipAddress);
+        } else {
+            return ipAddress;
+        }
     }
 }

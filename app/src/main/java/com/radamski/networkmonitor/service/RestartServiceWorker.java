@@ -9,11 +9,11 @@ import androidx.core.content.ContextCompat;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
-public class RestartWorker  extends Worker {
+public class RestartServiceWorker extends Worker {
     private final Context context;
-    private String TAG = "RestartWorker";
+    private String TAG = "RestartServiceWorker";
 
-    public RestartWorker(
+    public RestartServiceWorker(
             @NonNull Context context,
             @NonNull WorkerParameters params) {
         super(context, params);

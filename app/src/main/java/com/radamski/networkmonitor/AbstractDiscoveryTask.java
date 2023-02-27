@@ -36,7 +36,6 @@ public abstract class AbstractDiscoveryTask extends AsyncTask<Void, HostBean, Vo
 
     @Override
     protected void onPreExecute() {
-        size = (int) (end - start + 1);
         if (weakComm != null) {
             final TaskInterface comm = weakComm.get();
             if (comm != null) {
