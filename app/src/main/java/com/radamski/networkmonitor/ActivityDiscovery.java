@@ -6,6 +6,8 @@
 package com.radamski.networkmonitor;
 
 import static com.radamski.networkmonitor.AbstractDiscoveryTask.TRACKED_DEVICES;
+import static com.radamski.networkmonitor.Utils.Prefs.DEFAULT_ALARM_PERIOD;
+import static com.radamski.networkmonitor.Utils.Prefs.KEY_ALARM_PERIOD;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
@@ -16,6 +18,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
+import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -74,7 +77,7 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
     private Button btn_discover;
     private AbstractDiscoveryTask mDiscoveryTask = null;
 
-    private TinyDB<HostBean> tinydb;
+    private TinyDB tinydb;
     private List<HostBean> trackedHosts = new ArrayList<>();
     private ListView discoverList;
     private ListView trackedList;
@@ -89,7 +92,7 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
         requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
         setContentView(R.layout.discovery);
         mInflater = LayoutInflater.from(ctxt);
-        tinydb = new TinyDB<>(ctxt);
+        tinydb = new TinyDB(ctxt);
 
         // Discover
         btn_discover = findViewById(R.id.btn_discover);
@@ -151,9 +154,11 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
     }
 
     public static void scheduleAlarm(AlarmManager alarmManager, Context context) {
+        // TODO add shared preferences listener and schedule again if PERIOD change
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         Intent i = new Intent(context, NetworkSniffReceiver.class);
         PendingIntent pi = PendingIntent.getBroadcast(context, 0, i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP,  System.currentTimeMillis(), 300000L, pi);
+        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP,  System.currentTimeMillis(), prefs.getLong(KEY_ALARM_PERIOD, DEFAULT_ALARM_PERIOD), pi);
     }
 
     @Override

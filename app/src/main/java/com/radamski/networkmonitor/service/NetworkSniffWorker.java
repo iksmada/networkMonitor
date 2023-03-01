@@ -1,6 +1,7 @@
 package com.radamski.networkmonitor.service;
 
 import static com.radamski.networkmonitor.AbstractDiscoveryTask.CONNECTED_TRACKED_DEVICES;
+import static com.radamski.networkmonitor.AbstractDiscoveryTask.COUNT_DOWN_DEVICES;
 import static com.radamski.networkmonitor.AbstractDiscoveryTask.TRACKED_DEVICES;
 import static com.radamski.networkmonitor.Utils.Prefs.DEFAULT_IP_END;
 import static com.radamski.networkmonitor.Utils.Prefs.DEFAULT_IP_START;
@@ -40,7 +41,7 @@ import java.util.stream.Collectors;
 public class NetworkSniffWorker extends Worker implements TaskInterface {
     private static final String TAG = "NetworkSniffWorker";
     private final Context context;
-    private final TinyDB<HostBean> tinydb;
+    private final TinyDB tinydb;
     private List<HostBean> trackedHosts;
     public Set<HostBean> foundHosts = new HashSet<>();
     public Map<HostBean, Boolean> pastState = new HashMap<>();
@@ -53,7 +54,7 @@ public class NetworkSniffWorker extends Worker implements TaskInterface {
             @NonNull WorkerParameters params) {
         super(context, params);
         this.context = context;
-        tinydb = new TinyDB<>(context);
+        tinydb = new TinyDB(context);
         prefs = PreferenceManager.getDefaultSharedPreferences(context);
     }
 
@@ -82,22 +83,16 @@ public class NetworkSniffWorker extends Worker implements TaskInterface {
         // TODO save past state to the tinyDB
         ArrayList<HostBean> connectedHosts = tinydb.getListObject(CONNECTED_TRACKED_DEVICES, HostBean.class);
         trackedHosts.forEach(host -> pastState.put(host, connectedHosts.contains(host)));
+        countDown.putAll(tinydb.getMapObject(COUNT_DOWN_DEVICES, HostBean.class));
+        countDown.forEach((host, count) -> Log.i(TAG, String.format("Recovered %s with isConnected=false count=%d", host.hostname, count)));
 
-        Result result = Result.success();
-        for (int i = 0; i < prefs.getInt(KEY_TRIGGER_COUNTDOWN, DEFAULT_TRIGGER_COUNTDOWN); i++) {
-            // start task
-            Log.i(TAG, "Starting DefaultDiscoveryCallable");
-            mDiscoveryTask = new DefaultDiscoveryCallable(this, context, true);
-            mDiscoveryTask.setNetwork(network_ip, network_start, network_end);
-            Result lastResult = mDiscoveryTask.call();
-            result = updateResult(result, lastResult);
-            foundHosts.clear();
-            if(countDown.isEmpty() || isStopped())
-            {
-                Log.d(TAG, "break loop for: " + this.getId());
-                break;
-            }
-        }
+        // start task
+        Log.i(TAG, "Starting DefaultDiscoveryCallable");
+        // TODO Search only the tracked devices
+        mDiscoveryTask = new DefaultDiscoveryCallable(this, context, true);
+        mDiscoveryTask.setNetwork(network_ip, network_start, network_end);
+        Result result = mDiscoveryTask.call();
+        foundHosts.clear();
 
         return result;
     }
@@ -132,7 +127,8 @@ public class NetworkSniffWorker extends Worker implements TaskInterface {
 
     @Override
     public void onTaskCompleted(boolean wasCancelled) {
-        if(!wasCancelled) {
+        Log.d(TAG, String.format("onTaskCompleted called with wasCancelled=%s and isStopped()=%s", wasCancelled, isStopped()));
+        if(!wasCancelled && !isStopped()) {
             trackedHosts = tinydb.getListObject(TRACKED_DEVICES, HostBean.class);
 
             for(HostBean host: trackedHosts)
@@ -184,7 +180,9 @@ public class NetworkSniffWorker extends Worker implements TaskInterface {
                     }
                     return count;
                 });
+
             }
+            tinydb.putMapObject(COUNT_DOWN_DEVICES, countDown);
         }
     }
 

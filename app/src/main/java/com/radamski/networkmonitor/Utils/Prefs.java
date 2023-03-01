@@ -121,6 +121,8 @@ public class Prefs extends PreferenceActivity implements OnSharedPreferenceChang
     public static final String KEY_WIFI = "wifi";
     public static final String KEY_MANAGER = "manager";
     public static final int DEFAULT_MANAGER = Manager.ALARM_MANAGER.id;
+    public static final String KEY_ALARM_PERIOD = "alarmPeriod";
+    public static final long DEFAULT_ALARM_PERIOD = 180000L; // 3 minutes in milliseconds
 
     private static final String URL_DONATE = "https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=MDSDWG83PJSNG&lc=CH&item_name=Network%20Discovery%20for%20Android&currency_code=CHF&bn=PP%2dDonationsBF%3abtn_donate_LG%2egif%3aNonHosted";
     private static final String URL_WEB = "http://rorist.github.com/android-network-discovery/";

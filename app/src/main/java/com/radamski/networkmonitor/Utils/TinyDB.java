@@ -38,11 +38,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 
-public class TinyDB<T> {
+public class TinyDB {
 
     private Context context;
     private SharedPreferences preferences;
@@ -328,7 +329,7 @@ public class TinyDB<T> {
     }
 
 
-    public ArrayList<T> getListObject(String key, Class<T> mClass){
+    public <T> ArrayList<T> getListObject(String key, Class<T> mClass){
     	Gson gson = new Gson();
 
     	ArrayList<String> objStrings = getListString(key);
@@ -340,11 +341,22 @@ public class TinyDB<T> {
     	}
     	return objects;
     }
-    
+    public <K> Map<K, Integer> getMapObject(String key, Class<K> mClass) {
+        Gson gson = new Gson();
 
-    
-    public T getObject(String key, Class<T> classOfT){
+        String jsonStr = preferences.getString(key, "{}");
+        Map<String, Double> map = new HashMap<>();
+        map = gson.fromJson(jsonStr,  map.getClass());
+        Map<K, Integer> finalMap = new HashMap<>();
+        map.forEach((strObj, value) -> {
+            finalMap.put(gson.fromJson(strObj,  mClass), value.intValue());
+        });
 
+        return finalMap;
+    }
+
+
+    public <T> T getObject(String key, Class<T> classOfT){
         String json = getString(key);
         T value = new Gson().fromJson(json, classOfT);
         if (value == null)
@@ -484,13 +496,13 @@ public class TinyDB<T> {
      * @param key SharedPreferences key
      * @param obj is the Object you want to put 
      */
-    public void putObject(String key, T obj){
+    public <T> void putObject(String key, T obj){
     	checkForNullKey(key);
     	Gson gson = new Gson();
     	putString(key, gson.toJson(obj));
     }
 
-    public void putListObject(String key, List<T> objArray){
+    public <T> void putListObject(String key, List<T> objArray){
     	checkForNullKey(key);
     	Gson gson = new Gson();
     	ArrayList<String> objStrings = new ArrayList<>();
@@ -498,6 +510,18 @@ public class TinyDB<T> {
     		objStrings.add(gson.toJson(obj));
     	}
     	putListString(key, objStrings);
+    }
+
+    public <K,V> void putMapObject(String key, Map<K,V> objArray){
+    	checkForNullKey(key);
+    	Gson gson = new Gson();
+        Map<String, V> map = new HashMap<>();
+        objArray.forEach((obj, value) -> {
+            String objStr = gson.toJson(obj);
+            map.put(objStr, value);
+        });
+        String jsonStr = gson.toJson(map);
+    	putString(key, jsonStr);
     }
     
     /**

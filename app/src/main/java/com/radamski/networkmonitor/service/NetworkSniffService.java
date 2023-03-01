@@ -51,7 +51,7 @@ public class NetworkSniffService extends Service implements TaskInterface {
     private long network_ip;
     private long network_start;
     private long network_end;
-    private TinyDB<HostBean> tinydb;
+    private TinyDB tinydb;
     private List<HostBean> trackedHosts;
     public static List<HostBean> foundHosts = new ArrayList<>();
     public static Map<HostBean, Boolean> pastState = new HashMap<>();
@@ -69,7 +69,7 @@ public class NetworkSniffService extends Service implements TaskInterface {
         Log.i(TAG, "onCreate called");
         createNotificationChannel();
         isServiceRunning = true;
-        tinydb = new TinyDB<>(this);
+        tinydb = new TinyDB(this);
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
     }
 

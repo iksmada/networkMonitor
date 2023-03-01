@@ -107,7 +107,7 @@ class BasicStateRunner :  TaskerPluginRunnerConditionEvent<DetectionMode, Unit, 
                         // how to know the state of others?
                         // Check it here or in the service?
                         // output =  TaskerPluginResultConditionSatisfied(context, Unit)
-                        val tinydb = TinyDB<HostBean>(context)
+                        val tinydb = TinyDB(context)
                         val connected =
                             tinydb.getListObject(
                                 AbstractDiscoveryTask.CONNECTED_TRACKED_DEVICES,

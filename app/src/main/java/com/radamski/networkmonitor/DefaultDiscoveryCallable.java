@@ -111,7 +111,7 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
                 }
             }
         } else {
-            Log.i(TAG, "Sequencial scanning");
+            Log.i(TAG, "Sequential scanning");
             for (long i = start; i <= end; i++) {
                 launch(i);
             }
@@ -180,6 +180,13 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
                 // Rate control check
                 if (doRateControl && mRateControl.indicator != null && hosts_done % mRateMult == 0) {
                     mRateControl.adaptRate();
+                }
+                // Arp Check #1
+                host.hardwareAddress = HardwareAddress.getHardwareAddress(addr);
+                if(!NetInfo.NOMAC.equals(host.hardwareAddress)){
+                    Log.i(TAG, "found using arp #1 "+addr);
+                    publish(host);
+                    return;
                 }
                 // Native InetAddress check
                 if (h.isReachable(getRate())) {

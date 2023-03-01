@@ -21,6 +21,7 @@ public abstract class AbstractDiscoveryTask extends AsyncTask<Void, HostBean, Vo
 
     public static final String TRACKED_DEVICES = "trackedDevices";
     public static final String CONNECTED_TRACKED_DEVICES = "connectedTrackedDevices";
+    public static final String COUNT_DOWN_DEVICES = "countDownDevices";
 
     public AbstractDiscoveryTask(TaskInterface discover) {
         weakComm = new WeakReference<>(discover);
