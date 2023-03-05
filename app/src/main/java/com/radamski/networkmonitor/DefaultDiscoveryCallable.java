@@ -25,10 +25,13 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 
 public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Result> {
 
@@ -39,7 +42,7 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
     protected long start = 0;
     protected long end = 0;
     protected long size = 0;
-    private final static int[] DPORTS = { 139, 445, 22, 80 };
+    private final static int[] DPORTS = { 139, 445, 22, 80, 25, 53, 88, 110, 123, 137, 138, 143, 192, 389, 443, 465, 500, 554, 587, 636, 993, 995};
     private final static int TIMEOUT_SCAN = 900; // seconds
     private final static int TIMEOUT_SHUTDOWN = 10; // seconds
     private final static int THREADS = 10; //FIXME: Test, plz set in options again ?
@@ -53,6 +56,7 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
     private boolean doRateControl;
     private RateControl mRateControl;
     private Save mSave;
+    private List<String> listToVisit;
 
     public DefaultDiscoveryCallable(TaskInterface comm, Context ctxt, boolean useThreads) {
         this.comm = comm;
@@ -70,6 +74,11 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
         this.size = (int) (end - start + 1);
     }
 
+    public void setListToVisit(List<String> listToVisit)
+    {
+        this.listToVisit = listToVisit;
+    }
+
     @Override
     public ListenableWorker.Result call() {
         // onPreExecute starts
@@ -82,7 +91,8 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
                 + "), length=" + size);
         ListenableWorker.Result result = ListenableWorker.Result.success();
         mPool = Executors.newFixedThreadPool(THREADS);
-        if (ip <= end && ip >= start && useThreads) {
+
+        if (ip <= end && ip >= start && useThreads && listToVisit == null) {
             Log.i(TAG, "Back and forth scanning");
             // gateway
             launch(start);
@@ -112,9 +122,11 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
             }
         } else {
             Log.i(TAG, "Sequential scanning");
-            for (long i = start; i <= end; i++) {
-                launch(i);
+            if(listToVisit == null)
+            {
+                listToVisit = LongStream.rangeClosed(start, end).boxed().map(NetInfo::getIpFromLongUnsigned).collect(Collectors.toList());
             }
+            listToVisit.forEach(this::launch);
         }
         mPool.shutdown();
         try {
@@ -143,17 +155,24 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
     }
 
     private void launch(long i) {
+        launch(NetInfo.getIpFromLongUnsigned(i));
+    }
+
+    private void launch(String ip) {
         if(!mPool.isShutdown()) {
             if(useThreads) {
-                mPool.execute(new CheckRunnable(NetInfo.getIpFromLongUnsigned(i)));
+                mPool.execute(new CheckRunnable(ip));
             } else {
-                // synchronized method
-                new CheckRunnable(NetInfo.getIpFromLongUnsigned(i)).run();
+                new CheckRunnable(ip).run();
             }
         }
     }
 
     private int getRate() {
+        if (doRateControl) {
+            return mRateControl.rate;
+        }
+
         return Integer.parseInt(prefs.getString(Prefs.KEY_TIMEOUT_DISCOVER,
                 Prefs.DEFAULT_TIMEOUT_DISCOVER));
     }
@@ -200,7 +219,8 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
                 for (int i = 0; i < DPORTS.length; i++) {
                     try {
                         s.bind(null);
-                        s.connect(new InetSocketAddress(addr, DPORTS[i]), getRate());
+                        // TODO export this timeout to PREFs
+                        s.connect(new InetSocketAddress(addr, DPORTS[i]), 500);
                         Log.i(TAG, "found using TCP connect "+addr+" on port=" + DPORTS[i]);
                     } catch (IOException e) {
                     } catch (IllegalArgumentException e) {

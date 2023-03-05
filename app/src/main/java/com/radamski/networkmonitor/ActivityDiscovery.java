@@ -98,6 +98,10 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
         btn_discover = findViewById(R.id.btn_discover);
         btn_discover.setOnClickListener(v -> startDiscovering());
 
+        // Options
+        Button btn_options = findViewById(R.id.btn_options);
+        btn_options.setOnClickListener(v -> startActivity(new Intent(ctxt, Prefs.class)));
+
         // Discover Hosts list
         discoverAdapter = new HostsAdapter(ctxt, hosts);
         discoverList = (ListView) findViewById(R.id.output);
@@ -191,31 +195,14 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
 
         // Get ip information
         network_ip = NetInfo.getUnsignedLongFromIp(net.ip);
-        if (prefs.getBoolean(Prefs.KEY_IP_CUSTOM, Prefs.DEFAULT_IP_CUSTOM)) {
-            // Custom IP
-            network_start = NetInfo.getUnsignedLongFromIp(prefs.getString(Prefs.KEY_IP_START,
-                    Prefs.DEFAULT_IP_START));
-            network_end = NetInfo.getUnsignedLongFromIp(prefs.getString(Prefs.KEY_IP_END,
-                    Prefs.DEFAULT_IP_END));
+        // Detected IP
+        int shift = (32 - net.cidr);
+        if (net.cidr < 31) {
+            network_start = (network_ip >> shift << shift) + 1;
+            network_end = (network_start | ((1 << shift) - 1)) - 1;
         } else {
-            // Custom CIDR
-            if (prefs.getBoolean(Prefs.KEY_CIDR_CUSTOM, Prefs.DEFAULT_CIDR_CUSTOM)) {
-                net.cidr = Integer.parseInt(prefs.getString(Prefs.KEY_CIDR, Prefs.DEFAULT_CIDR));
-            }
-            // Detected IP
-            int shift = (32 - net.cidr);
-            if (net.cidr < 31) {
-                network_start = (network_ip >> shift << shift) + 1;
-                network_end = (network_start | ((1 << shift) - 1)) - 1;
-            } else {
-                network_start = (network_ip >> shift << shift);
-                network_end = (network_start | ((1 << shift) - 1));
-            }
-            // Reset ip start-end (is it really convenient ?)
-            SharedPreferences.Editor edit = prefs.edit();
-            edit.putString(Prefs.KEY_IP_START, NetInfo.getIpFromLongUnsigned(network_start));
-            edit.putString(Prefs.KEY_IP_END, NetInfo.getIpFromLongUnsigned(network_end));
-            edit.commit();
+            network_start = (network_ip >> shift << shift);
+            network_end = (network_start | ((1 << shift) - 1));
         }
     }
 

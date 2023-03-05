@@ -6,8 +6,6 @@ import static com.radamski.networkmonitor.AbstractDiscoveryTask.TRACKED_DEVICES;
 import static com.radamski.networkmonitor.Utils.Prefs.DEFAULT_IP_END;
 import static com.radamski.networkmonitor.Utils.Prefs.DEFAULT_IP_START;
 import static com.radamski.networkmonitor.Utils.Prefs.DEFAULT_TRIGGER_COUNTDOWN;
-import static com.radamski.networkmonitor.Utils.Prefs.KEY_IP_END;
-import static com.radamski.networkmonitor.Utils.Prefs.KEY_IP_START;
 import static com.radamski.networkmonitor.Utils.Prefs.KEY_TRIGGER_COUNTDOWN;
 
 import android.content.Context;
@@ -63,15 +61,7 @@ public class NetworkSniffWorker extends Worker implements TaskInterface {
     @Override
     public Result doWork() {
         Log.d(TAG, "doWork called for: " + this.getId());
-        // TODO Check what to do if it is not in the wifi, result failure?
-        NetwortkStatusReceiver status = new NetwortkStatusReceiver(null);
-        status.onReceive(context, new Intent());
-
-
-        NetInfo net = new NetInfo(context);
-        long network_ip = NetInfo.getUnsignedLongFromIp(net.ip);
-        long network_start = NetInfo.getUnsignedLongFromIp(prefs.getString(KEY_IP_START, DEFAULT_IP_START));
-        long network_end = NetInfo.getUnsignedLongFromIp(prefs.getString(KEY_IP_END, DEFAULT_IP_END));
+        // TODO add broadcast receiver for network changed
 
         // TODO add a receiver if this change
         trackedHosts = tinydb.getListObject(TRACKED_DEVICES, HostBean.class);
@@ -80,8 +70,6 @@ public class NetworkSniffWorker extends Worker implements TaskInterface {
             return Result.failure();
         }
 
-        // lets assume everybody is connected for a test
-        // TODO save past state to the tinyDB
         ArrayList<HostBean> connectedHosts = tinydb.getListObject(CONNECTED_TRACKED_DEVICES, HostBean.class);
         trackedHosts.forEach(host -> pastState.put(host, connectedHosts.contains(host)));
         countDown.putAll(tinydb.getMapObject(COUNT_DOWN_DEVICES, HostBean.class));
@@ -91,7 +79,21 @@ public class NetworkSniffWorker extends Worker implements TaskInterface {
         Log.i(TAG, "Starting DefaultDiscoveryCallable");
         // TODO Search only the tracked devices
         mDiscoveryTask = new DefaultDiscoveryCallable(this, context, true);
-        mDiscoveryTask.setNetwork(network_ip, network_start, network_end);
+        // TODO add preference
+        if(false) {
+            // TODO Check what to do if it is not in the wifi, result failure?
+            NetwortkStatusReceiver status = new NetwortkStatusReceiver(null);
+            status.onReceive(context, new Intent());
+
+            NetInfo net = new NetInfo(context);
+            long network_ip = NetInfo.getUnsignedLongFromIp(net.ip);
+            long network_start = NetInfo.getUnsignedLongFromIp(DEFAULT_IP_START);
+            long network_end = NetInfo.getUnsignedLongFromIp(DEFAULT_IP_END);
+            mDiscoveryTask.setNetwork(network_ip, network_start, network_end);
+        }
+        else {
+            mDiscoveryTask.setListToVisit(trackedHosts.stream().map(host -> host.ipAddress).collect(Collectors.toList()));
+        }
         Result result = mDiscoveryTask.call();
         foundHosts.clear();
 
@@ -106,25 +108,6 @@ public class NetworkSniffWorker extends Worker implements TaskInterface {
             ExecutorService lPool = mDiscoveryTask.getExecutor();
             if(lPool != null) {
                 lPool.shutdownNow();
-            }
-        }
-    }
-
-    private Result updateResult(Result result, Result lastResult) {
-        if (result instanceof Result.Failure) {
-            return result;
-        }
-        else {
-            if(result instanceof Result.Retry) {
-                if(lastResult instanceof Result.Failure) {
-                    return lastResult;
-                }
-                else {
-                    return result;
-                }
-            }
-            else {
-                return lastResult;
             }
         }
     }

@@ -17,6 +17,8 @@ import android.preference.PreferenceManager;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
+import com.radamski.networkmonitor.Utils.Prefs;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
@@ -27,8 +29,6 @@ import java.net.SocketException;
 import java.util.Enumeration;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import com.radamski.networkmonitor.Utils.Prefs;
 
 // TODO: IPv6 support
 
@@ -79,12 +79,7 @@ public class NetInfo {
 
     @Override
     public int hashCode() {
-        int ip_custom = prefs.getBoolean(Prefs.KEY_IP_CUSTOM, Prefs.DEFAULT_IP_CUSTOM) ? 1:0;
-        int ip_start = prefs.getString(Prefs.KEY_IP_START, Prefs.DEFAULT_IP_START).hashCode();
-        int ip_end = prefs.getString(Prefs.KEY_IP_END, Prefs.DEFAULT_IP_END).hashCode();
-        int cidr_custom = prefs.getBoolean(Prefs.KEY_CIDR_CUSTOM, Prefs.DEFAULT_CIDR_CUSTOM) ? 1:0;
-        int cidr = prefs.getString(Prefs.KEY_CIDR, Prefs.DEFAULT_CIDR).hashCode();
-        return 42 + intf.hashCode() + ip.hashCode() + cidr + ip_custom + ip_start + ip_end + cidr_custom + cidr;
+        return 42 + intf.hashCode() + ip.hashCode() + cidr;
     }
 
     public void getIp() {

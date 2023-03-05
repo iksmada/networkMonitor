@@ -5,8 +5,6 @@ import static com.radamski.networkmonitor.AbstractDiscoveryTask.TRACKED_DEVICES;
 import static com.radamski.networkmonitor.Utils.Prefs.DEFAULT_IP_END;
 import static com.radamski.networkmonitor.Utils.Prefs.DEFAULT_IP_START;
 import static com.radamski.networkmonitor.Utils.Prefs.DEFAULT_TRIGGER_COUNTDOWN;
-import static com.radamski.networkmonitor.Utils.Prefs.KEY_IP_END;
-import static com.radamski.networkmonitor.Utils.Prefs.KEY_IP_START;
 import static com.radamski.networkmonitor.Utils.Prefs.KEY_TRIGGER_COUNTDOWN;
 
 import android.app.Notification;
@@ -90,8 +88,8 @@ public class NetworkSniffService extends Service implements TaskInterface {
 
         NetInfo net = new NetInfo(this);
         network_ip = NetInfo.getUnsignedLongFromIp(net.ip);
-        network_start = NetInfo.getUnsignedLongFromIp(prefs.getString(KEY_IP_START, DEFAULT_IP_START));
-        network_end = NetInfo.getUnsignedLongFromIp(prefs.getString(KEY_IP_END, DEFAULT_IP_END));
+        network_start = NetInfo.getUnsignedLongFromIp(DEFAULT_IP_START);
+        network_end = NetInfo.getUnsignedLongFromIp(DEFAULT_IP_END);
 
         // TODO add a receiver if this change
         trackedHosts = tinydb.getListObject(TRACKED_DEVICES, HostBean.class);
@@ -106,7 +104,7 @@ public class NetworkSniffService extends Service implements TaskInterface {
         // setting notification to avoid exception
         Intent notificationIntent = new Intent(this, ActivityDiscovery.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(this,
-                0, notificationIntent, 0);
+                0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Service is Running")
                 .setContentText("Listening for Screen Off/On events")

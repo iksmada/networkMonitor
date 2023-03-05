@@ -12,7 +12,6 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.net.Uri;
-import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.preference.CheckBoxPreference;
 import android.preference.EditTextPreference;
@@ -28,15 +27,12 @@ import android.view.Window;
 import android.widget.Toast;
 
 import com.radamski.networkmonitor.ActivityDiscovery;
-import com.radamski.networkmonitor.Network.NetInfo;
 import com.radamski.networkmonitor.R;
 
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 
 public class Prefs extends PreferenceActivity implements OnSharedPreferenceChangeListener {
@@ -86,7 +82,7 @@ public class Prefs extends PreferenceActivity implements OnSharedPreferenceChang
     public static final boolean DEFAULT_RATECTRL_ENABLE = false;
 
     public final static String KEY_TIMEOUT_DISCOVER = "timeout_discover";
-    public final static String DEFAULT_TIMEOUT_DISCOVER = "2000";
+    public final static String DEFAULT_TIMEOUT_DISCOVER = "60000";
     public final static String KEY_TRIGGER_COUNTDOWN = "trigger_countdown";
     public final static int DEFAULT_TRIGGER_COUNTDOWN = 3;
 
@@ -99,20 +95,8 @@ public class Prefs extends PreferenceActivity implements OnSharedPreferenceChang
     public static final String KEY_INTF = "interface";
     public static final String DEFAULT_INTF = null;
 
-    public static final String KEY_IP_START = "ip_start";
     public static final String DEFAULT_IP_START = "0.0.0.0";
-
-    public static final String KEY_IP_END = "ip_end";
     public static final String DEFAULT_IP_END = "0.0.0.0";
-
-    public static final String KEY_IP_CUSTOM = "ip_custom";
-    public static final boolean DEFAULT_IP_CUSTOM = false;
-    
-    public static final String KEY_CIDR_CUSTOM = "cidr_custom";
-    public static final boolean DEFAULT_CIDR_CUSTOM = false;
-
-    public static final String KEY_CIDR = "cidr";
-    public static final String DEFAULT_CIDR = "24";
 
     public static final String KEY_DONATE = "donate";
     public static final String KEY_WEBSITE = "website";
@@ -130,8 +114,6 @@ public class Prefs extends PreferenceActivity implements OnSharedPreferenceChang
 
     private Context ctxt;
     private PreferenceScreen ps = null;
-    private String before_ip_start;
-    private String before_ip_end;
     private String before_port_start;
     private String before_port_end;
 
@@ -159,8 +141,6 @@ public class Prefs extends PreferenceActivity implements OnSharedPreferenceChang
 
         // Before change values
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(ctxt);
-        before_ip_start = prefs.getString(KEY_IP_START, DEFAULT_IP_START);
-        before_ip_end = prefs.getString(KEY_IP_END, DEFAULT_IP_END);
         before_port_start = prefs.getString(KEY_PORT_START, DEFAULT_PORT_START);
         before_port_end = prefs.getString(KEY_PORT_END, DEFAULT_PORT_END);
 
@@ -255,24 +235,10 @@ public class Prefs extends PreferenceActivity implements OnSharedPreferenceChang
     public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
         if (key.equals(KEY_PORT_START) || key.equals(KEY_PORT_END)) {
             checkPortRange();
-        } else if (key.equals(KEY_IP_START) || key.equals(KEY_IP_END)) {
-            checkIpRange();
         //} else if (key.equals(KEY_NTHREADS)) {
         //    checkMaxThreads();
         } else if (key.equals(KEY_RATECTRL_ENABLE)) {
             checkTimeout(KEY_TIMEOUT_DISCOVER, KEY_RATECTRL_ENABLE, false);
-        } else if (key.equals(KEY_CIDR_CUSTOM)) {
-            CheckBoxPreference cb = (CheckBoxPreference) ps.findPreference(KEY_CIDR_CUSTOM);
-            if (cb.isChecked()) {
-                ((CheckBoxPreference)ps.findPreference(KEY_IP_CUSTOM)).setChecked(false);
-            }
-            sendBroadcast(new Intent(WifiManager.WIFI_STATE_CHANGED_ACTION));
-        } else if (key.equals(KEY_IP_CUSTOM)) {
-            CheckBoxPreference cb = (CheckBoxPreference) ps.findPreference(KEY_IP_CUSTOM);
-            if (cb.isChecked()) {
-                ((CheckBoxPreference)ps.findPreference(KEY_CIDR_CUSTOM)).setChecked(false);
-            }
-            sendBroadcast(new Intent(WifiManager.WIFI_STATE_CHANGED_ACTION));
         }
     }
 
@@ -283,39 +249,6 @@ public class Prefs extends PreferenceActivity implements OnSharedPreferenceChang
             timeout.setEnabled(value);
         } else {
             timeout.setEnabled(!value);
-        }
-    }
-
-    private void checkIpRange() {
-        EditTextPreference ipStartEdit = (EditTextPreference) ps.findPreference(KEY_IP_START);
-        EditTextPreference ipEndEdit = (EditTextPreference) ps.findPreference(KEY_IP_END);
-        // Check if these are valid IP's
-        Pattern pattern = Pattern
-                .compile("((25[0-5]|2[0-4][0-9]|[0-1][0-9]{2}|[1-9][0-9]|[1-9])\\.(25[0-5]|2[0-4]"
-                        + "[0-9]|[0-1][0-9]{2}|[1-9][0-9]|[1-9]|0)\\.(25[0-5]|2[0-4][0-9]|[0-1]"
-                        + "[0-9]{2}|[1-9][0-9]|[1-9]|0)\\.(25[0-5]|2[0-4][0-9]|[0-1][0-9]{2}"
-                        + "|[1-9][0-9]|[0-9]))");
-        Matcher matcher1 = pattern.matcher(ipStartEdit.getText());
-        Matcher matcher2 = pattern.matcher(ipEndEdit.getText());
-        if (!matcher1.matches() || !matcher2.matches()) {
-            ipStartEdit.setText(before_ip_start);
-            ipEndEdit.setText(before_ip_end);
-            Toast.makeText(ctxt, R.string.preferences_error4, Toast.LENGTH_LONG).show();
-            return;
-        }
-        // Check if ip start is bigger or equal than ip end
-        try {
-            long ipStart = NetInfo.getUnsignedLongFromIp(ipStartEdit.getText());
-            long ipEnd = NetInfo.getUnsignedLongFromIp(ipEndEdit.getText());
-            if (ipStart > ipEnd) {
-                ipStartEdit.setText(before_ip_start);
-                ipEndEdit.setText(before_ip_end);
-                Toast.makeText(ctxt, R.string.preferences_error1, Toast.LENGTH_LONG).show();
-            }
-        } catch (NumberFormatException e) {
-            ipStartEdit.setText(before_ip_start);
-            ipEndEdit.setText(before_ip_end);
-            Toast.makeText(ctxt, e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
