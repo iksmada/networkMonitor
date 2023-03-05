@@ -12,12 +12,13 @@ import com.joaomgcd.taskerpluginlibrary.runner.*
 import com.radamski.networkmonitor.Network.HostBean
 import com.radamski.networkmonitor.Utils.TinyDB
 import com.radamski.networkmonitor.state.DetectionMode
+import com.radamski.networkmonitor.state.DeviceName
 import com.radamski.networkmonitor.state.DeviceUpdate
 
-class BasicStateHelper(config: TaskerPluginConfig<DetectionMode>) : TaskerPluginConfigHelper<DetectionMode, Unit, BasicStateRunner>(config) {
+class BasicStateHelper(config: TaskerPluginConfig<DetectionMode>) : TaskerPluginConfigHelper<DetectionMode, DeviceName, BasicStateRunner>(config) {
     override val runnerClass = BasicStateRunner::class.java
     override val inputClass = DetectionMode::class.java
-    override val outputClass = Unit::class.java
+    override val outputClass = DeviceName::class.java
 
     override val addDefaultStringBlurb: Boolean
         get() = false
@@ -41,9 +42,9 @@ class BasicStateHelper(config: TaskerPluginConfig<DetectionMode>) : TaskerPlugin
     }
 }
 
-class ActivityDeviceState : ActivityConfigTaskerNoOutput<DetectionMode, BasicStateRunner, BasicStateHelper >() {
-    var radiosState: RadioGroup? = null
-    var radiosOperator: RadioGroup? = null
+class ActivityDeviceState : ActivityConfigTasker<DetectionMode, DeviceName, BasicStateRunner, BasicStateHelper >() {
+    private var radiosState: RadioGroup? = null
+    private var radiosOperator: RadioGroup? = null
     override fun assignFromInput(input: TaskerInput<DetectionMode>) {
         if (input.regular.operator == DetectionMode.ALL) {
             findViewById<RadioButton>(R.id.radioButtonAll).isChecked = true
@@ -87,12 +88,14 @@ class ActivityDeviceState : ActivityConfigTaskerNoOutput<DetectionMode, BasicSta
     override fun getNewHelper(config: TaskerPluginConfig<DetectionMode>) = BasicStateHelper(config)
 }
 
-class BasicStateRunner :  TaskerPluginRunnerConditionEvent<DetectionMode, Unit, DeviceUpdate>() {
+private const val BASE_NAME = ".home"
+
+class BasicStateRunner :  TaskerPluginRunnerConditionEvent<DetectionMode, DeviceName, DeviceUpdate>() {
     private val TAG = "NetworkSniffEvents"
 
-    override fun getSatisfiedCondition(context: Context, input: TaskerInput<DetectionMode>, update: DeviceUpdate?): TaskerPluginResultCondition<Unit> {
+    override fun getSatisfiedCondition(context: Context, input: TaskerInput<DetectionMode>, update: DeviceUpdate?): TaskerPluginResultCondition<DeviceName> {
         Log.i(TAG, "Received update from %s with flags:{isConnected:%s, premature:%s}".format(update?.host?.hostname, update?.isConnected, update?.premature))
-        val output: TaskerPluginResultCondition<Unit> =
+        val output: TaskerPluginResultCondition<DeviceName> =
             if(update?.isConnected == (input.regular.state == DetectionMode.ON)) {
                 when(input.regular.operator)
                 {
@@ -100,7 +103,9 @@ class BasicStateRunner :  TaskerPluginRunnerConditionEvent<DetectionMode, Unit, 
                         if(update.premature == false && update.isConnected == true) // only send connected event when detected prematurely
                             TaskerPluginResultConditionUnsatisfied()
                         else
-                            TaskerPluginResultConditionSatisfied(context)
+                            TaskerPluginResultConditionSatisfied(context,
+                                DeviceName(update.host.hostname.replace(BASE_NAME, ""))
+                            )
                     }
                     DetectionMode.ALL -> {
                         // TODO implement ALL Operator
@@ -135,7 +140,10 @@ class BasicStateRunner :  TaskerPluginRunnerConditionEvent<DetectionMode, Unit, 
                                     }
                                 }
                             if (comply)
-                                TaskerPluginResultConditionSatisfied(context)
+                                TaskerPluginResultConditionSatisfied(context,
+                                    DeviceName(tracked.joinToString(" and ") { it.hostname }
+                                        .replace(BASE_NAME, ""))
+                                )
                             else
                                 TaskerPluginResultConditionUnsatisfied()
                         }
@@ -148,7 +156,7 @@ class BasicStateRunner :  TaskerPluginRunnerConditionEvent<DetectionMode, Unit, 
         val state = if (input.regular.state == DetectionMode.ON) "connected" else "disconnected"
         val operator = if (input.regular.operator == DetectionMode.ALL) "ALL" else "ANY"
         val result = if (output.success) "satisfied" else "unsatisfied"
-        Log.i(TAG, "Monitoring %s %s is %s".format( operator, state, result));
+        Log.i(TAG, "Monitoring %s %s is %s".format( operator, state, result))
         return output
     }
 }

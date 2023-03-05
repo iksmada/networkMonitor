@@ -8,7 +8,7 @@
     <string name="app_loading">Loading</string>
     <string name="btn_yes">Yes</string>
     <string name="btn_no">No</string>
-    <string name="btn_ok">Ok</string>
+    <string name="btn_ok">OK</string>
     <string name="btn_discover">Discover</string>
     <string name="btn_discover_cancel">Cancel</string>
     <string name="btn_discover_return">Return</string>
@@ -98,7 +98,7 @@
     <string name="tracked_empty">Tracked devices will appear here</string>
     <string name="tracked_title">Tracked Devices</string>
 
-
+    <string name="device_label">Device</string>
 
     <string name="preferences_help">Help</string>
     <string name="preferences_export">Export</string>

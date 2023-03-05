@@ -8,13 +8,7 @@
 package com.radamski.networkmonitor.Network;
 
 import android.app.Activity;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteDatabaseCorruptException;
-import android.database.sqlite.SQLiteException;
 import android.util.Log;
-
-import com.radamski.networkmonitor.Utils.Db;
 
 import java.io.BufferedReader;
 import java.io.FileReader;

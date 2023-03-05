@@ -36,6 +36,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 public class NetworkSniffWorker extends Worker implements TaskInterface {
@@ -99,10 +100,13 @@ public class NetworkSniffWorker extends Worker implements TaskInterface {
 
     @Override
     public void onStopped() {
+        Log.d(TAG, "onStopped called for: " + this.getId());
         if(mDiscoveryTask != null)
         {
-            Log.d(TAG, "onStopped called for: " + this.getId());
-            mDiscoveryTask.getExecutor().shutdownNow();
+            ExecutorService lPool = mDiscoveryTask.getExecutor();
+            if(lPool != null) {
+                lPool.shutdownNow();
+            }
         }
     }
 

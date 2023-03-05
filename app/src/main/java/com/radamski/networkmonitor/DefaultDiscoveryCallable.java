@@ -181,13 +181,6 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
                 if (doRateControl && mRateControl.indicator != null && hosts_done % mRateMult == 0) {
                     mRateControl.adaptRate();
                 }
-                // Arp Check #1
-                host.hardwareAddress = HardwareAddress.getHardwareAddress(addr);
-                if(!NetInfo.NOMAC.equals(host.hardwareAddress)){
-                    Log.i(TAG, "found using arp #1 "+addr);
-                    publish(host);
-                    return;
-                }
                 // Native InetAddress check
                 if (h.isReachable(getRate())) {
                     Log.i(TAG, "found using InetAddress ping "+addr);
