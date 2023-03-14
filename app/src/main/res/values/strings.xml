@@ -104,6 +104,7 @@
     <string name="preferences_export">Export</string>
     <string name="preferences_credits">Credits</string>
     <string name="preferences_discover">Discovery</string>
+    <string name="preferences_monitor">Monitor</string>
     <string name="preferences_portscan">Port Scan</string>
     <string name="preferences_advanced">General</string>
 
@@ -114,7 +115,9 @@
     <string name="preferences_ratecontrol_enable_title">Rate control</string>
     <string name="preferences_ratecontrol_enable_summary">Enable automatic rate detection</string>
     <string name="preferences_timeout_ping_title">Custom ping timeout</string>
+    <string name="preferences_timeout_count_title">Number of retries</string>
     <string name="preferences_timeout_ping_summary">Ping timeout in milliseconds</string>
+    <string name="preferences_timeout_count_summary">Number of times in a row a device must be detect as disconnected</string>
     <string name="preferences_port_start_title">First Port</string>
     <string name="preferences_port_start_summary">First TCP Port to scan. 1-65535</string>
     <string name="preferences_port_end_title">Last Port</string>
@@ -139,7 +142,9 @@
     <string name="preferences_website_title">Website</string>
     <string name="preferences_email_title">Contact</string>
     <string name="preferences_intf_title">Network interface</string>
+    <string name="preferences_method_title">Monitoring method</string>
     <string name="preferences_intf_summary">Choose which interface to use</string>
+    <string name="preferences_method_summary">Choose which feature to use</string>
     <string name="preferences_discover_method_title">Discover Method</string>
     <string name="preferences_discover_method_summary">Change to different method of host discovery</string>
     <string name="preferences_discover_method_title_dialog">Choose a method</string>
@@ -158,9 +163,9 @@
     <string name="operator_description">Select which operator to apply to devices in order trigger the event</string>
     <string name="state_description">Select which state of the devices should be detected in order trigger the event</string>
 
-    <string-array name="method_discover_name">
-        <item>Ping/connect (default)</item>
-        <item>DNS requests</item>
-    </string-array>
+
+    <string name="alarmmanager_method">AlarmManager</string>
+    <string name="workmanager_method">WorkManager</string>
+    <string name="service_method">Service</string>
 
 </resources>

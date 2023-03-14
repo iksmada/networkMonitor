@@ -4,13 +4,14 @@ import java.util.Arrays;
 
 public enum Manager {
 
-    WORK_MANAGER(1), ALARM_MANAGER(2), SERVICE(3);
+    ALARM_MANAGER(0), WORK_MANAGER(1), SERVICE(2);
     public final int id;
     Manager(int id) {
         this.id = id;
     }
 
-    public static Manager getById(int id) {
+    public static Manager getById(String idString) {
+        int id = Integer.parseInt(idString);
         return Arrays.stream(Manager.values()).filter(manager -> manager.id == id).findAny().orElseThrow(RuntimeException::new);
     }
 }

@@ -177,7 +177,7 @@ public class NetworkSniffService extends Service implements TaskInterface {
                     count += 1;
                     Log.i(TAG, String.format("Monitoring %s with isConnected=%s count=%d", host.hostname, isConnected, count));
                     // TODO add this options to Prefs activity
-                    int countToTrigger = prefs.getInt(KEY_TRIGGER_COUNTDOWN, DEFAULT_TRIGGER_COUNTDOWN);
+                    int countToTrigger = Integer.parseInt(prefs.getString(KEY_TRIGGER_COUNTDOWN, DEFAULT_TRIGGER_COUNTDOWN));
                     // check if we need to trigger someone finally
                     if (countToTrigger == count) {
                         sendToTasker(host, isConnected, premature);

@@ -121,7 +121,7 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
 
         String packageName = getPackageName();
         // TODO add option to start via alarmManager or WorkManager
-        Manager manager = Manager.getById(prefs.getInt(Prefs.KEY_MANAGER, Prefs.DEFAULT_MANAGER));
+        Manager manager = Manager.getById(prefs.getString(Prefs.KEY_METHOD_MONITOR, Prefs.DEFAULT_METHOD_MONITOR));
 
         switch (manager) {
             case ALARM_MANAGER:
@@ -350,7 +350,7 @@ final public class ActivityDiscovery extends ActivityNet implements TaskInterfac
             trackedAdapter.notifyDataSetChanged();
             discoverList.setVisibility(View.GONE);
             trackedList.setVisibility(View.VISIBLE);
-            Manager manager = Manager.getById(prefs.getInt(Prefs.KEY_MANAGER, Prefs.DEFAULT_MANAGER));
+            Manager manager = Manager.getById(prefs.getString(Prefs.KEY_METHOD_MONITOR, Prefs.DEFAULT_METHOD_MONITOR));
             if(manager == Manager.SERVICE) {
                 startService();
             }

@@ -10,4 +10,16 @@
         <item>reply_all</item>
     </string-array>
 
+    <string-array name="method_monitor_value">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string-array name="method_monitor_name">
+        <item>@string/alarmmanager_method</item>
+        <item>@string/workmanager_method</item>
+        <item>@string/service_method</item>
+    </string-array>
+
 </resources>

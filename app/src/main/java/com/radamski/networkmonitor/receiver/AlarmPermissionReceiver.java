@@ -20,7 +20,7 @@ public class AlarmPermissionReceiver extends BroadcastReceiver {
         Log.d(TAG, "onReceive called");
         if (intent.getAction().equals(AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED)) {
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-            Manager manager = Manager.getById(prefs.getInt(Prefs.KEY_MANAGER, Prefs.DEFAULT_MANAGER));
+            Manager manager = Manager.getById(prefs.getString(Prefs.KEY_METHOD_MONITOR, Prefs.DEFAULT_METHOD_MONITOR));
             if (manager == Manager.ALARM_MANAGER) {
                 AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

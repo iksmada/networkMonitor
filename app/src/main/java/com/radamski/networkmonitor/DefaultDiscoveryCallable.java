@@ -15,7 +15,6 @@ import androidx.work.ListenableWorker;
 import com.radamski.networkmonitor.Network.HardwareAddress;
 import com.radamski.networkmonitor.Network.HostBean;
 import com.radamski.networkmonitor.Network.NetInfo;
-import com.radamski.networkmonitor.Network.RateControl;
 import com.radamski.networkmonitor.Utils.Prefs;
 import com.radamski.networkmonitor.Utils.Save;
 import com.radamski.networkmonitor.Utils.TaskInterface;
@@ -53,8 +52,6 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
     private final TaskInterface comm;
     private int pt_move = 2; // 1=backward 2=forward
     private ExecutorService mPool;
-    private boolean doRateControl;
-    private RateControl mRateControl;
     private Save mSave;
     private List<String> listToVisit;
 
@@ -62,7 +59,6 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
         this.comm = comm;
         prefs = PreferenceManager.getDefaultSharedPreferences(ctxt);
         net = new NetInfo(ctxt);
-        mRateControl = new RateControl();
         mSave = new Save();
         this.useThreads = useThreads;
     }
@@ -81,10 +77,6 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
 
     @Override
     public ListenableWorker.Result call() {
-        // onPreExecute starts
-        doRateControl = prefs.getBoolean(Prefs.KEY_RATECTRL_ENABLE,
-                Prefs.DEFAULT_RATECTRL_ENABLE);
-        // onPreExecute ends
         // doInBackground starts
         Log.v(TAG, "start=" + NetInfo.getIpFromLongUnsigned(start) + " (" + start
                 + "), end=" + NetInfo.getIpFromLongUnsigned(end) + " (" + end
@@ -169,12 +161,8 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
     }
 
     private int getRate() {
-        if (doRateControl) {
-            return mRateControl.rate;
-        }
-
-        return Integer.parseInt(prefs.getString(Prefs.KEY_TIMEOUT_DISCOVER,
-                Prefs.DEFAULT_TIMEOUT_DISCOVER));
+        return Integer.parseInt(prefs.getString(Prefs.KEY_TIMEOUT_MONITOR,
+                Prefs.DEFAULT_TIMEOUT_MONITOR));
     }
 
     public ExecutorService getExecutor() {
@@ -197,18 +185,10 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
             try {
                 InetAddress h = InetAddress.getByName(addr);
                 // Rate control check
-                if (doRateControl && mRateControl.indicator != null && hosts_done % mRateMult == 0) {
-                    mRateControl.adaptRate();
-                }
                 // Native InetAddress check
                 if (h.isReachable(getRate())) {
                     Log.i(TAG, "found using InetAddress ping "+addr);
                     publish(host);
-                    // Set indicator and get a rate
-                    if (doRateControl && mRateControl.indicator == null) {
-                        mRateControl.indicator = addr;
-                        mRateControl.adaptRate();
-                    }
                     return;
                 }
 
@@ -268,8 +248,7 @@ public class DefaultDiscoveryCallable implements Callable<ListenableWorker.Resul
         // Static
         if ((host.hostname = mSave.getCustomName(host)) == null) {
             // DNS
-            if (prefs.getBoolean(Prefs.KEY_RESOLVE_NAME,
-                    Prefs.DEFAULT_RESOLVE_NAME) == true) {
+            if (prefs.getBoolean(Prefs.KEY_RESOLVE_NAME, Prefs.DEFAULT_RESOLVE_NAME)) {
                 try {
                     host.hostname = (InetAddress.getByName(host.ipAddress)).getCanonicalHostName();
                 } catch (UnknownHostException e) {

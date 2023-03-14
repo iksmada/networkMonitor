@@ -45,9 +45,8 @@
             android:key="timeout_discover"
             android:title="@string/preferences_timeout_ping_title"
             android:summary="@string/preferences_timeout_ping_summary"
-            android:defaultValue="60000"
+            android:defaultValue="1000"
             android:inputType="number" />
-        <!-- get 60000 from string -->
         <CheckBoxPreference
             android:key="allow_mobile"
             android:title="@string/preferences_allow_mobile_title"
@@ -62,47 +61,35 @@
     </PreferenceScreen>
 
     <PreferenceScreen
-        android:title="@string/preferences_portscan"
+        android:title="@string/preferences_monitor"
         android:summary="">
-        <CheckBoxPreference
-            android:key="banner"
-            android:title="@string/preferences_banner_title"
-            android:summary="@string/preferences_banner_summary"
-            android:defaultValue="true" />
         <EditTextPreference
-            android:key="port_start"
-            android:title="@string/preferences_port_start_title"
-            android:summary="@string/preferences_port_start_summary"
-            android:defaultValue="1"
-            android:inputType="number" />
+            android:key="timeout_monitor"
+            android:title="@string/preferences_timeout_ping_title"
+            android:summary="@string/preferences_timeout_ping_summary"
+            android:defaultValue="60000"
+            android:inputType="number"/>
         <EditTextPreference
-            android:key="port_end"
-            android:title="@string/preferences_port_end_title"
-            android:summary="@string/preferences_port_end_summary"
-            android:defaultValue="1024"
-            android:inputType="number" />
-        <EditTextPreference
-            android:key="ssh_user"
-            android:title="@string/preferences_ssh_user_title"
-            android:summary="@string/preferences_ssh_user_summary"
-            android:defaultValue="root" />
-        <CheckBoxPreference
-            android:key="timeout_force"
-            android:title="@string/preferences_timeout_force_title"
-            android:summary="@string/preferences_timeout_force_summary"
-            android:defaultValue="false" />
-        <EditTextPreference
-            android:key="timeout_portscan"
-            android:title="@string/preferences_timeout_title"
-            android:summary="@string/preferences_timeout_summary"
-            android:defaultValue="500"
+            android:key="trigger_countdown"
+            android:title="@string/preferences_timeout_count_title"
+            android:summary="@string/preferences_timeout_count_summary"
+            android:defaultValue="3"
             android:inputType="number"
-            android:dependency="timeout_force" />
+            android:maxLength="1"/>
+        <ListPreference
+            android:key="monitor_method"
+            android:title="@string/preferences_method_title"
+            android:summary="@string/preferences_method_summary"
+            android:dialogTitle="@string/preferences_method_title"
+            android:entries="@array/method_monitor_name"
+            android:entryValues="@array/method_monitor_value"
+            android:defaultValue="0"/>
+        <!-- get 60000 from string -->
     </PreferenceScreen>
     
     <Preference
         android:key="wifi"
-        android:title="Wifi"/>
+        android:title="Change Wifi"/>
 
     <Preference
         android:key="donate"
@@ -121,6 +108,10 @@
     <Preference
         android:key="version"
         android:title="@string/preferences_version_title"/>
+    <Preference
+        android:key="acknowledgments"
+        android:title="Acknowledgments"/>
+    <!-- TODO mention here the project used as sample -->
 </PreferenceCategory>
 
 </PreferenceScreen>

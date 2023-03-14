@@ -24,7 +24,6 @@ import android.preference.PreferenceScreen;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.Window;
-import android.widget.Toast;
 
 import com.radamski.networkmonitor.ActivityDiscovery;
 import com.radamski.networkmonitor.R;
@@ -66,8 +65,8 @@ public class Prefs extends PreferenceActivity implements OnSharedPreferenceChang
     public static final String KEY_RESET_SERVICESDB = "resetservicesdb";
     public static final int DEFAULT_RESET_SERVICESDB = 0;
 
-    public static final String KEY_METHOD_DISCOVER = "discovery_method";
-    public static final String DEFAULT_METHOD_DISCOVER = "0";
+    public static final String KEY_METHOD_MONITOR = "monitor_method";
+    public static final String DEFAULT_METHOD_MONITOR = String.valueOf(Manager.ALARM_MANAGER.id);
 
     // public static final String KEY_METHOD_PORTSCAN = "method_portscan";
     // public static final String DEFAULT_METHOD_PORTSCAN = "0";
@@ -79,12 +78,14 @@ public class Prefs extends PreferenceActivity implements OnSharedPreferenceChang
     public final static String DEFAULT_TIMEOUT_PORTSCAN = "500";
 
     public static final String KEY_RATECTRL_ENABLE = "ratecontrol_enable";
-    public static final boolean DEFAULT_RATECTRL_ENABLE = false;
+    public static final boolean DEFAULT_RATECTRL_ENABLE = true;
 
     public final static String KEY_TIMEOUT_DISCOVER = "timeout_discover";
-    public final static String DEFAULT_TIMEOUT_DISCOVER = "60000";
+    public final static String KEY_TIMEOUT_MONITOR = "timeout_monitor";
+    public final static String DEFAULT_TIMEOUT_DISCOVER = "1000";
+    public final static String DEFAULT_TIMEOUT_MONITOR = "60000";
     public final static String KEY_TRIGGER_COUNTDOWN = "trigger_countdown";
-    public final static int DEFAULT_TRIGGER_COUNTDOWN = 3;
+    public final static String DEFAULT_TRIGGER_COUNTDOWN = "3";
 
     public static final String KEY_BANNER = "banner";
     public static final boolean DEFAULT_BANNER = true;
@@ -103,14 +104,12 @@ public class Prefs extends PreferenceActivity implements OnSharedPreferenceChang
     public static final String KEY_EMAIL = "email";
     public static final String KEY_VERSION = "version";
     public static final String KEY_WIFI = "wifi";
-    public static final String KEY_MANAGER = "manager";
-    public static final int DEFAULT_MANAGER = Manager.ALARM_MANAGER.id;
     public static final String KEY_ALARM_PERIOD = "alarmPeriod";
     public static final long DEFAULT_ALARM_PERIOD = 180000L; // 3 minutes in milliseconds
 
-    private static final String URL_DONATE = "https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=MDSDWG83PJSNG&lc=CH&item_name=Network%20Discovery%20for%20Android&currency_code=CHF&bn=PP%2dDonationsBF%3abtn_donate_LG%2egif%3aNonHosted";
-    private static final String URL_WEB = "http://rorist.github.com/android-network-discovery/";
-    private static final String URL_EMAIL = "aubort.jeanbaptiste@gmail.com";
+    private static final String URL_DONATE = "https://www.paypal.com/donate/?business=3DRJ3KX9YKJ7E&no_recurring=1&item_name=Help+a+developer+who+help+you&currency_code=CAD";
+    private static final String URL_WEB = "https://github.com/iksmada/networkMonitor";
+    private static final String URL_EMAIL = "raphaeladamski@hotmail.com";
 
     private Context ctxt;
     private PreferenceScreen ps = null;
@@ -227,17 +226,15 @@ public class Prefs extends PreferenceActivity implements OnSharedPreferenceChang
         try {
             version.setSummary(getPackageManager().getPackageInfo(ActivityDiscovery.PKG, 0).versionName);
         } catch (NameNotFoundException e) {
-            version.setSummary("0.3.x");
+            version.setSummary("something is wrong");
         }
 
     }
 
     public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-        if (key.equals(KEY_PORT_START) || key.equals(KEY_PORT_END)) {
-            checkPortRange();
         //} else if (key.equals(KEY_NTHREADS)) {
         //    checkMaxThreads();
-        } else if (key.equals(KEY_RATECTRL_ENABLE)) {
+        if (key.equals(KEY_RATECTRL_ENABLE)) {
             checkTimeout(KEY_TIMEOUT_DISCOVER, KEY_RATECTRL_ENABLE, false);
         }
     }
@@ -249,25 +246,6 @@ public class Prefs extends PreferenceActivity implements OnSharedPreferenceChang
             timeout.setEnabled(value);
         } else {
             timeout.setEnabled(!value);
-        }
-    }
-
-    private void checkPortRange() {
-        // Check if port start is bigger or equal than port end
-        EditTextPreference portStartEdit = (EditTextPreference) ps.findPreference(KEY_PORT_START);
-        EditTextPreference portEndEdit = (EditTextPreference) ps.findPreference(KEY_PORT_END);
-        try {
-            int portStart = Integer.parseInt(portStartEdit.getText());
-            int portEnd = Integer.parseInt(portEndEdit.getText());
-            if (portStart >= portEnd) {
-                portStartEdit.setText(before_port_start);
-                portEndEdit.setText(before_port_end);
-                Toast.makeText(ctxt, R.string.preferences_error1, Toast.LENGTH_LONG).show();
-            }
-        } catch (NumberFormatException e) {
-            portStartEdit.setText(before_port_start);
-            portEndEdit.setText(before_port_end);
-            Toast.makeText(ctxt, e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
